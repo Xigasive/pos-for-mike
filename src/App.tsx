@@ -30,7 +30,10 @@ export default function App() {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [lastSyncedHash, setLastSyncedHash] = useState('');
   const [users, setUsers] = useState<UserType[]>([]);
-  const [currentUser, setCurrentUser] = useState<UserType | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserType | null>(() => {
+    const saved = localStorage.getItem('pos_current_user');
+    return saved ? JSON.parse(saved) : null;
+  });
   
   // Login/Register States
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
@@ -164,15 +167,14 @@ export default function App() {
           setExpenses(data.expenses || []);
           setInventoryItems(data.inventoryItems || []);
           setInventoryTransactions(data.inventoryTransactions || []);
-              setUsers(data.users || []);
+                  setUsers(data.users || []);
           setLastSyncedHash(serverHash);
         }
       } catch (err) {
         // Silent fail
       }
     }, 3000);
-
-    return () => clearInterval(pollInterval);
+  return () => clearInterval(pollInterval);
   }, []);
 
   useEffect(() => {
@@ -219,7 +221,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('ทั้งหมด');
 
-  const categories = ['ทั้งหมด', ...Array.from(new Set(productCatalog.map(p => p.category)))];
+  const categories = ['ทั้งหมด', ...Array.from<string>(new Set(productCatalog.map(p => p.category)))];
 
   const filteredProducts = productCatalog.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -305,7 +307,8 @@ export default function App() {
         total, 
         totalCost, 
         timestamp: new Date().toISOString(),
-        customerName: checkoutCustomerName || oldOrder?.customerName
+        customerName: checkoutCustomerName || oldOrder?.customerName,
+        user: currentUser?.username
       };
       setOrders(prev => prev.map(o => o.id === editingOrderId ? finalOrder : o));
       setEditingOrderId(null);
@@ -322,7 +325,8 @@ export default function App() {
         total,
         totalCost,
         timestamp: new Date().toISOString(),
-        customerName: checkoutCustomerName
+        customerName: checkoutCustomerName,
+        user: currentUser?.username
       };
       setOrders(prev => [newOrder, ...prev]);
       finalOrder = newOrder;
@@ -489,16 +493,16 @@ export default function App() {
     const transferBalance = totalTransferIncome - totalTransferExpense;
 
     const allDates = new Set([
-      ...orders.map(o => new Date(o.timestamp).toLocaleDateString('en-CA')),
-      ...restocks.map(r => new Date(r.timestamp).toLocaleDateString('en-CA')),
-      ...expenses.map(e => new Date(e.timestamp).toLocaleDateString('en-CA'))
+      ...orders.map(o => new Date(String(o.timestamp)).toLocaleDateString('en-CA')),
+      ...restocks.map(r => new Date(String(r.timestamp)).toLocaleDateString('en-CA')),
+      ...expenses.map(e => new Date(String(e.timestamp)).toLocaleDateString('en-CA'))
     ]);
-    const availableDates = Array.from(allDates).sort((a,b) => b.localeCompare(a));
+    const availableDates = Array.from<string>(allDates).sort((a,b) => b.localeCompare(a));
     const defaultDate = dashboardDate || (availableDates.length > 0 ? availableDates[0] : '');
     
-    const dailyOrders = defaultDate ? orders.filter(o => new Date(o.timestamp).toLocaleDateString('en-CA') === defaultDate) : orders;
-    const dailyRestocks = defaultDate ? restocks.filter(r => new Date(r.timestamp).toLocaleDateString('en-CA') === defaultDate) : restocks;
-    const dailyExpensesList = defaultDate ? expenses.filter(e => new Date(e.timestamp).toLocaleDateString('en-CA') === defaultDate) : expenses;
+    const dailyOrders = defaultDate ? orders.filter(o => new Date(String(o.timestamp)).toLocaleDateString('en-CA') === defaultDate) : orders;
+    const dailyRestocks = defaultDate ? restocks.filter(r => new Date(String(r.timestamp)).toLocaleDateString('en-CA') === defaultDate) : restocks;
+    const dailyExpensesList = defaultDate ? expenses.filter(e => new Date(String(e.timestamp)).toLocaleDateString('en-CA') === defaultDate) : expenses;
     
     const dailyRevenue = dailyOrders.reduce((sum, o) => sum + o.subtotal, 0);
     const dailyProfit = dailyRevenue - dailyOrders.reduce((sum, o) => sum + o.totalCost, 0);
@@ -670,8 +674,8 @@ export default function App() {
       if (product) setUnitCost(product.cost);
     };
 
-    const dates = Array.from(new Set(restocks.map(r => new Date(r.timestamp).toLocaleDateString('en-CA')))).sort((a,b) => b.localeCompare(a));
-    const filteredRestocks = restockDate ? restocks.filter(r => new Date(r.timestamp).toLocaleDateString('en-CA') === restockDate) : restocks;
+    const dates = Array.from<string>(new Set(restocks.map(r => new Date(String(r.timestamp)).toLocaleDateString('en-CA')))).sort((a,b) => b.localeCompare(a));
+    const filteredRestocks = restockDate ? restocks.filter(r => new Date(String(r.timestamp)).toLocaleDateString('en-CA') === restockDate) : restocks;
 
     const handleSaveRestock = () => {
       sounds.success();
@@ -997,7 +1001,7 @@ export default function App() {
                   <div className="flex items-center flex-wrap gap-3 mb-1">
                     <h3 className="font-bold text-lg text-slate-900">{r.productName}</h3>
                     <span className="text-sm font-medium px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md">
-                      {new Date(r.timestamp).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })}
+                      {new Date(String(r.timestamp)).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })}
                     </span>
                     {r.masterItemId && (
                       <span className="text-xs font-bold px-2 py-1 rounded-md bg-indigo-100 text-indigo-700">
@@ -1031,8 +1035,8 @@ export default function App() {
   };
 
   const HistoryView = () => {
-    const dates = Array.from(new Set(orders.map(o => new Date(o.timestamp).toLocaleDateString('en-CA')))).sort((a,b) => b.localeCompare(a));
-    const filteredOrders = historyDate ? orders.filter(o => new Date(o.timestamp).toLocaleDateString('en-CA') === historyDate) : orders;
+    const dates = Array.from<string>(new Set(orders.map(o => new Date(String(o.timestamp)).toLocaleDateString('en-CA')))).sort((a,b) => b.localeCompare(a));
+    const filteredOrders = historyDate ? orders.filter(o => new Date(String(o.timestamp)).toLocaleDateString('en-CA') === historyDate) : orders;
 
     const handleUpdatePayment = (id: string, method: 'cash' | 'transfer') => {
       setOrders(prev => prev.map(o => o.id === id ? { ...o, paymentMethod: method } : o));
@@ -1080,7 +1084,7 @@ export default function App() {
                       </span>
                     )}
                     <span className={`text-sm font-medium px-2 py-0.5 rounded-md ${badgeClass}`}>
-                      {new Date(order.timestamp).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
+                      {new Date(String(order.timestamp)).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
                     </span>
                     {order.paymentMethod ? (
                       <span className={`text-xs font-bold px-2 py-1 rounded-md ${order.paymentMethod === 'cash' ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'}`}>
@@ -1141,8 +1145,8 @@ export default function App() {
   };
 
   const ExpensesView = () => {
-    const dates = Array.from(new Set(expenses.map(e => new Date(e.timestamp).toLocaleDateString('en-CA')))).sort((a,b) => b.localeCompare(a));
-    const filteredExpenses = expenseDate ? expenses.filter(e => new Date(e.timestamp).toLocaleDateString('en-CA') === expenseDate) : expenses;
+    const dates = Array.from<string>(new Set(expenses.map(e => new Date(String(e.timestamp)).toLocaleDateString('en-CA')))).sort((a,b) => b.localeCompare(a));
+    const filteredExpenses = expenseDate ? expenses.filter(e => new Date(String(e.timestamp)).toLocaleDateString('en-CA') === expenseDate) : expenses;
 
     const handleSaveExpense = () => {
       if (amount <= 0 || !note.trim()) return;
@@ -1271,7 +1275,7 @@ export default function App() {
                     </div>
                     <h3 className="font-bold text-lg text-slate-900">{e.note}</h3>
                     <span className="text-sm font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-                      {new Date(e.timestamp).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
+                      {new Date(String(e.timestamp)).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
                     </span>
                     {e.paymentMethod && (
                       <span className={`text-xs font-bold px-2 py-1 rounded-md ${e.paymentMethod === 'cash' ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'}`}>
@@ -1320,7 +1324,7 @@ export default function App() {
       setInvTab('items');
     };
 
-    const handleEditInv = (item: InventoryItem) => {
+    const handleEditInv = (item: MasterInventoryItem) => {
       setEditingInventoryItem(item);
       setInvForm(item);
       setIsInvAdding(false);
@@ -1329,8 +1333,9 @@ export default function App() {
 
     const handleSaveInv = () => {
       if (!invForm || !invForm.name) return;
+      const invToSave = { ...invForm, user: currentUser?.username };
       if (isInvAdding) {
-        setInventoryItems(prev => [...prev, invForm]);
+        setInventoryItems(prev => [...prev, invToSave]);
         if (invForm.stock > 0) {
           setInventoryTransactions(prev => [...prev, {
             id: Date.now().toString() + '-in',
@@ -1346,7 +1351,7 @@ export default function App() {
         }
       } else if (editingInventoryItem) {
         const diff = invForm.stock - editingInventoryItem.stock;
-        setInventoryItems(prev => prev.map(i => i.id === editingInventoryItem.id ? invForm : i));
+        setInventoryItems(prev => prev.map(i => i.id === editingInventoryItem.id ? invToSave : i));
         
         if (diff !== 0) {
           setInventoryTransactions(prev => [...prev, {
@@ -1374,7 +1379,7 @@ export default function App() {
       }
     };
 
-    const invDates = Array.from(new Set(inventoryTransactions.map(t => new Date(t.timestamp).toLocaleDateString('en-CA')))).sort((a,b) => b.localeCompare(a));
+    const invDates = Array.from<string>(new Set(inventoryTransactions.map(t => new Date(t.timestamp).toLocaleDateString('en-CA')))).sort((a,b) => b.localeCompare(a));
     const filteredInvTrans = invTransDate ? inventoryTransactions.filter(t => new Date(t.timestamp).toLocaleDateString('en-CA') === invTransDate) : inventoryTransactions;
 
     const filteredItems = inventoryItems.filter(i => i.name.toLowerCase().includes(invSearchQuery.toLowerCase()) || i.sku.toLowerCase().includes(invSearchQuery.toLowerCase()));
@@ -1662,10 +1667,11 @@ export default function App() {
     const handleSave = () => {
       sounds.success();
       if (form) {
+        const productToSave = { ...form, user: currentUser?.username };
         if (isAdding) {
-          setProductCatalog(prev => [form, ...prev]);
+          setProductCatalog(prev => [productToSave, ...prev]);
         } else {
-          setProductCatalog(prev => prev.map(p => p.id === form.id ? form : p));
+          setProductCatalog(prev => prev.map(p => p.id === form.id ? productToSave : p));
         }
         setEditingProduct(null);
         setForm(null);
@@ -1735,8 +1741,10 @@ export default function App() {
 
     return (
       <div className="flex-1 p-6 md:p-8 overflow-y-auto pb-24 md:pb-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">คลังสินค้า</h1>
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+          <div className="flex items-center gap-4">
+            <h1 className="text-3xl font-bold text-slate-900">คลังสินค้า</h1>
+          </div>
           <button onClick={() => { sounds.click(); handleAddClick(); }} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-xl flex items-center gap-2 transition-colors">
             <Plus size={18} /> เพิ่มสินค้า
           </button>
@@ -2096,6 +2104,13 @@ export default function App() {
           <span className="text-[10px] font-bold">ตั้งค่า</span>
         </button>
       </div>
+      <button
+        onClick={() => { sounds.click(); setCurrentUser(null); }}
+        className="md:hidden fixed top-4 right-4 w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center text-red-500 hover:text-red-600 border border-slate-200 z-[60] transition-colors"
+        title="ออกจากระบบ"
+      >
+        <LogOut size={18} />
+      </button>
       <button
         onClick={toggleSound}
         className="fixed bottom-24 md:bottom-6 right-6 w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-slate-700 hover:text-indigo-600 border border-slate-200 z-[60] transition-colors"
