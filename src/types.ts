@@ -7,6 +7,7 @@ export interface Product {
   category: string;
   stock: number;
   image?: string;
+  user?: string; // added to track who created/modified
 }
 
 export interface CartItem extends Product {
@@ -23,6 +24,7 @@ export interface Order {
   timestamp: string;
   paymentMethod?: 'cash' | 'transfer';
   customerName?: string;
+  user?: string;
 }
 
 export interface ExpenseRecord {
@@ -32,6 +34,7 @@ export interface ExpenseRecord {
   timestamp: string;
   type?: 'income' | 'expense';
   paymentMethod?: 'cash' | 'transfer';
+  user?: string;
 }
 
 export interface RestockRecord {
@@ -47,6 +50,7 @@ export interface RestockRecord {
   bulkCost?: number;
   paymentMethod?: 'cash' | 'transfer';
   masterItemId?: string;
+  user?: string;
 }
 
 export interface MasterInventoryItem {
@@ -57,6 +61,7 @@ export interface MasterInventoryItem {
   stock: number;
   unit: string;
   unitCost: number;
+  user?: string;
 }
 
 export interface InventoryTransaction {
@@ -69,4 +74,11 @@ export interface InventoryTransaction {
   totalCost: number;
   timestamp: string;
   note: string;
+  user?: string;
+}
+
+export interface User {
+  id: string;
+  username: string;
+  pin: string; // simplistic auth using a pin or password
 }
