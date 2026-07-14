@@ -1001,7 +1001,7 @@ export default function App() {
             filteredRestocks.map(r => (
               <div key={r.id} className="bg-white p-5 rounded-2xl border border-slate-200 flex flex-col md:flex-row justify-between gap-4 md:items-center shadow-sm">
                 <div>
-                  {r.user && <div className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-lg flex items-center gap-1 w-fit mb-2"><User size={12}/> พนักงาน: {r.user}</div>}
+                  {r.user && <div className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-lg flex items-center gap-1 w-fit mb-2"><User size={12}/> โดย: {r.user}</div>}
                   <div className="flex items-center flex-wrap gap-3 mb-1">
                     <h3 className="font-bold text-lg text-slate-900">{r.productName}</h3>
                     <span className="text-sm font-medium px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md">
@@ -1130,6 +1130,7 @@ export default function App() {
                       <span className="text-slate-300">|</span>
                       <span className="text-emerald-600 font-bold">กำไร ฿{(order.total - order.totalCost).toFixed(2)}</span>
                     </div>
+                    {order.user && <div className="mt-2 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded flex items-center gap-1"><User size={12}/> โดย: {order.user}</div>}
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => handleEditOrder(order)} className="flex items-center gap-1 text-sm font-bold text-indigo-600 hover:bg-indigo-50 px-3 py-2 rounded-xl transition-colors border border-indigo-100 bg-white">
@@ -1292,6 +1293,7 @@ export default function App() {
                   <div className="text-sm text-slate-500 mt-2">
                     รหัสรายการ: {e.id} &bull; {e.type === 'income' ? 'รายรับ' : 'รายจ่าย'}
                   </div>
+                  {e.user && <div className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-md mt-2 flex items-center gap-1 w-fit"><User size={12}/> โดย: {e.user}</div>}
                 </div>
                 <div className="flex flex-row md:flex-col justify-between items-center md:items-end gap-3 shrink-0">
                   <span className={`font-extrabold text-2xl ${e.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
@@ -1529,6 +1531,7 @@ export default function App() {
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
                             {item.sku && <span className="text-xs font-mono font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">{item.sku}</span>}
                             <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md">{item.category}</span>
+                            {item.user && <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 flex items-center gap-1"><User size={12}/> โดย: {item.user}</span>}
                           </div>
                         </div>
                       </div>
@@ -1614,6 +1617,7 @@ export default function App() {
                           <Clock size={12} /> {new Date(t.timestamp).toLocaleString('th-TH')}
                         </p>
                         {t.note && <p className="text-sm text-slate-600 mt-2 bg-slate-100 inline-block px-3 py-1 rounded-lg italic">"{t.note}"</p>}
+                        {t.user && <p className="text-xs text-slate-500 mt-2 flex items-center gap-1"><User size={12}/> โดย: {t.user}</p>}
                       </div>
                     </div>
                     
@@ -1779,9 +1783,10 @@ export default function App() {
                       )}
                     </div>
                     <div>
-                      <h3 className="font-bold text-lg text-slate-900 flex items-center gap-2">
+                      <h3 className="font-bold text-lg text-slate-900 flex flex-wrap items-center gap-2">
                         {p.name}
                         <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{p.sku}</span>
+                        {p.user && <span className="text-xs font-semibold text-slate-500 bg-indigo-50/80 border border-indigo-100/50 px-2 py-0.5 rounded flex items-center gap-1 ml-1"><User size={12}/> {p.user}</span>}
                       </h3>
                       <p className="text-sm text-slate-500">
                         {p.category} &bull; ราคา: ฿{p.price.toFixed(2)} &bull; ทุน: ฿{p.cost.toFixed(2)}
