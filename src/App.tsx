@@ -6,7 +6,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { products as initialProducts } from './data';
 import { CartItem, Product, Order, RestockRecord, ExpenseRecord, MasterInventoryItem, InventoryTransaction } from './types';
-import { ShoppingCart, Plus, Minus, CheckCircle2, AlertCircle, Trash2, Home, BarChart2, User, Search, Edit, FileText, Settings, PackagePlus, Wallet, TrendingUp, ShoppingBag, Package, ArrowRightLeft, TrendingDown, Database, Clock, History, Filter, X, Save, Gift, Volume2, VolumeX } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, CheckCircle2, AlertCircle, Trash2, Home, BarChart2, User, Search, Edit, FileText, Settings, PackagePlus, Wallet, TrendingUp, ShoppingBag, Package, ArrowRightLeft, TrendingDown, Database, Clock, History, Filter, X, Save, Gift, Volume2, VolumeX, Landmark, CreditCard } from 'lucide-react';
 import { sounds, setMuted, getMuted } from './utils/audio';
 
 export default function App() {
@@ -487,16 +487,26 @@ export default function App() {
     
     const dailyPurchases = dailyRestocks.reduce((sum, r) => sum + r.totalCost, 0);
     const dailyOtherExpenses = dailyExpensesList.filter(e => e.type !== 'income').reduce((sum, e) => sum + e.amount, 0);
+    const dailyCashOtherExpenses = dailyExpensesList.filter(e => e.type !== 'income' && (e.paymentMethod === 'cash' || !e.paymentMethod)).reduce((sum, e) => sum + e.amount, 0);
+    const dailyTransferOtherExpenses = dailyExpensesList.filter(e => e.type !== 'income' && e.paymentMethod === 'transfer').reduce((sum, e) => sum + e.amount, 0);
+    
     const dailyOtherIncome = dailyExpensesList.filter(e => e.type === 'income').reduce((sum, e) => sum + e.amount, 0);
+    const dailyCashOtherIncome = dailyExpensesList.filter(e => e.type === 'income' && (e.paymentMethod === 'cash' || !e.paymentMethod)).reduce((sum, e) => sum + e.amount, 0);
+    const dailyTransferOtherIncome = dailyExpensesList.filter(e => e.type === 'income' && e.paymentMethod === 'transfer').reduce((sum, e) => sum + e.amount, 0);
+
+    const dailyNetCash = dailyCashRevenue + dailyCashOtherIncome - dailyCashOtherExpenses;
+    const dailyNetTransfer = dailyTransferRevenue + dailyTransferOtherIncome - dailyTransferOtherExpenses;
+
     const dailyRemainingBalance = dailyRevenue + dailyOtherIncome - dailyPurchases - dailyOtherExpenses;
 
 
     return (
       <div className="flex-1 p-6 md:p-8 overflow-y-auto pb-24 md:pb-8 bg-slate-50/50">
         <h1 className="text-3xl font-bold text-slate-900 mb-8">ภาพรวมธุรกิจ</h1>
+        
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-6 rounded-3xl text-white shadow-lg shadow-indigo-200">
-            <h3 className="text-indigo-100 font-medium mb-1 flex items-center gap-2"><TrendingUp size={18} /> ยอดเงินคงเหลือรวม</h3>
+            <h3 className="text-indigo-100 font-medium mb-1 flex items-center gap-2"><TrendingUp size={18} /> กระเป๋าเงินปัจจุบัน</h3>
             <p className="text-4xl font-extrabold mb-4">฿{remainingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             <div className="flex gap-2">
               <div className="bg-white/20 px-3 py-1.5 rounded-lg inline-flex flex-col backdrop-blur-sm flex-1">
@@ -509,18 +519,19 @@ export default function App() {
               </div>
             </div>
           </div>
-          
-          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-center relative overflow-hidden">
+
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-center relative overflow-hidden lg:col-span-2">
             <div className="absolute top-0 right-0 p-6 opacity-5">
               <ShoppingBag size={100} />
             </div>
-            <div className="flex justify-between items-start mb-2 relative z-10">
-              <h3 className="text-slate-500 font-medium">สรุปยอดประจำวัน</h3>
+            
+            <div className="flex justify-between items-start mb-4 relative z-10">
+              <h3 className="text-slate-500 font-medium text-lg">สรุปยอดประจำวัน</h3>
               {availableDates.length > 0 && (
                 <select 
                   value={defaultDate} 
                   onChange={e => { sounds.click(); setDashboardDate(e.target.value); }}
-                  className="bg-slate-50 border border-slate-200 rounded-lg text-xs p-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-700"
+                  className="bg-slate-50 border border-slate-200 rounded-lg text-sm p-1.5 px-3 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-700 font-semibold"
                 >
                   {availableDates.map(d => (
                     <option key={d} value={d}>{new Date(d).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}</option>
@@ -528,54 +539,64 @@ export default function App() {
                 </select>
               )}
             </div>
-            <div className="relative z-10 mb-4">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">เงินคงเหลือรายวัน</span>
-              <p className={`text-3xl font-extrabold ${dailyRemainingBalance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                ฿{dailyRemainingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-            </div>
-            
-            <div className="space-y-2 relative z-10">
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-500">ยอดขาย ({dailyOrders.length} ออเดอร์)</span>
-                <span className="font-bold text-slate-900">+ ฿{dailyRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              </div>
-              {dailyOtherIncome > 0 && (
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500">รายรับอื่นๆ</span>
-                  <span className="font-bold text-emerald-600">+ ฿{dailyOtherIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </div>
-              )}
-              {dailyPurchases > 0 && (
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500">ซื้อเข้าสต็อก</span>
-                  <span className="font-bold text-rose-600">- ฿{dailyPurchases.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </div>
-              )}
-              {dailyOtherExpenses > 0 && (
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500">ค่าใช้จ่ายอื่นๆ</span>
-                  <span className="font-bold text-rose-600">- ฿{dailyOtherExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </div>
-              )}
-            </div>
 
-            <div className="mt-4 pt-3 border-t border-slate-100 relative z-10">
-              <p className="text-xs text-slate-500 font-semibold mb-1">สัดส่วนยอดขาย</p>
-              <div className="flex gap-2">
-                <div className="bg-emerald-50 px-2 py-1 rounded-md flex-1">
-                  <div className="text-[10px] text-emerald-600 font-bold">เงินสด</div>
-                  <div className="text-xs font-bold text-emerald-700">฿{dailyCashRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+              <div>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">ยอดเงินสุทธิประจำวัน</span>
+                <p className={`text-3xl font-extrabold mb-1 ${(dailyRevenue + dailyOtherIncome - dailyOtherExpenses) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  ฿{(dailyRevenue + dailyOtherIncome - dailyOtherExpenses).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <div className="flex gap-2 mt-2 mb-3">
+                  <div className="bg-emerald-50 px-2 py-1.5 rounded-lg flex-1 border border-emerald-100/50">
+                    <div className="flex items-center gap-1 text-emerald-600 mb-0.5">
+                      <Wallet size={12} />
+                      <span className="text-[10px] font-bold">เงินสด</span>
+                    </div>
+                    <div className="text-sm font-bold text-emerald-700">฿{dailyNetCash.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                  </div>
+                  <div className="bg-blue-50 px-2 py-1.5 rounded-lg flex-1 border border-blue-100/50">
+                    <div className="flex items-center gap-1 text-blue-600 mb-0.5">
+                      <Landmark size={12} />
+                      <span className="text-[10px] font-bold">โอนเงิน</span>
+                    </div>
+                    <div className="text-sm font-bold text-blue-700">฿{dailyNetTransfer.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                  </div>
                 </div>
-                <div className="bg-sky-50 px-2 py-1 rounded-md flex-1">
-                  <div className="text-[10px] text-sky-600 font-bold">โอนเงิน</div>
-                  <div className="text-xs font-bold text-sky-700">฿{dailyTransferRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                <div className="text-xs text-slate-500 space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <div className="flex justify-between"><span className="text-slate-600">ยอดขายรวม</span><span className="font-semibold text-emerald-600">+ ฿{dailyRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                  {dailyOtherIncome > 0 && <div className="flex justify-between"><span className="text-slate-600">รายรับอื่นๆ</span><span className="font-semibold text-emerald-600">+ ฿{dailyOtherIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>}
+                  {dailyOtherExpenses > 0 && <div className="flex justify-between"><span className="text-slate-600">รายจ่ายอื่นๆ</span><span className="font-semibold text-rose-600">- ฿{dailyOtherExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>}
+                </div>
+              </div>
+
+              <div>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">ยอดขายรวมวันนี้</span>
+                <p className="text-2xl font-extrabold text-slate-900 mb-1">
+                  ฿{dailyRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <p className="text-xs text-slate-400 mb-3">จำนวน {dailyOrders.length} ออเดอร์</p>
+                
+                <div className="flex gap-2">
+                  <div className="bg-emerald-50 px-3 py-2 rounded-xl flex-1 border border-emerald-100/50">
+                    <div className="flex items-center gap-1.5 text-emerald-600 mb-0.5">
+                      <Wallet size={12} />
+                      <span className="text-[10px] font-bold">เงินสด</span>
+                    </div>
+                    <div className="text-sm font-bold text-emerald-700">฿{dailyCashRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                  </div>
+                  <div className="bg-blue-50 px-3 py-2 rounded-xl flex-1 border border-blue-100/50">
+                    <div className="flex items-center gap-1.5 text-blue-600 mb-0.5">
+                      <Landmark size={12} />
+                      <span className="text-[10px] font-bold">โอนเงิน</span>
+                    </div>
+                    <div className="text-sm font-bold text-blue-700">฿{dailyTransferRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <div className="bg-orange-50 p-4 rounded-3xl border border-orange-100 flex items-center justify-between">
               <div>
                 <h3 className="text-orange-800 font-medium mb-1 text-xs">ซื้อเข้าสต็อก</h3>
