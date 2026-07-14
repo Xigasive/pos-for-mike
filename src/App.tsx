@@ -722,7 +722,8 @@ export default function App() {
             bulkQty,
             bulkCost: restockMasterItemId ? 0 : bulkCost,
             paymentMethod: restockPaymentMethod,
-            masterItemId: restockMasterItemId || undefined
+            masterItemId: restockMasterItemId || undefined,
+            user: r.user || currentUser?.username
           } : r));
         }
         setEditingRestockId(null);
@@ -742,7 +743,8 @@ export default function App() {
             unitCost: masterItem.unitCost,
             totalCost: finalTotalCost,
             timestamp: new Date().toISOString(),
-            note: `แปลงสต็อกเข้าหน้าร้าน: ${product.name}`
+            note: `แปลงสต็อกเข้าหน้าร้าน: ${product.name}`,
+            user: currentUser?.username
           }]);
         }
         
@@ -758,7 +760,8 @@ export default function App() {
           bulkQty,
           bulkCost: restockMasterItemId ? (masterItem?.unitCost || 0) : bulkCost,
           paymentMethod: restockPaymentMethod,
-          masterItemId: restockMasterItemId || undefined
+          masterItemId: restockMasterItemId || undefined,
+          user: currentUser?.username
         };
         setRestocks(prev => [newRestock, ...prev]);
         setProductCatalog(prev => prev.map(p => p.id === selectedProductId ? { ...p, stock: p.stock + qty, cost: finalUnitCost } : p));
@@ -998,6 +1001,7 @@ export default function App() {
             filteredRestocks.map(r => (
               <div key={r.id} className="bg-white p-5 rounded-2xl border border-slate-200 flex flex-col md:flex-row justify-between gap-4 md:items-center shadow-sm">
                 <div>
+                  {r.user && <div className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-lg flex items-center gap-1 w-fit mb-2"><User size={12}/> พนักงาน: {r.user}</div>}
                   <div className="flex items-center flex-wrap gap-3 mb-1">
                     <h3 className="font-bold text-lg text-slate-900">{r.productName}</h3>
                     <span className="text-sm font-medium px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md">
@@ -1039,11 +1043,11 @@ export default function App() {
     const filteredOrders = historyDate ? orders.filter(o => new Date(String(o.timestamp)).toLocaleDateString('en-CA') === historyDate) : orders;
 
     const handleUpdatePayment = (id: string, method: 'cash' | 'transfer') => {
-      setOrders(prev => prev.map(o => o.id === id ? { ...o, paymentMethod: method } : o));
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, paymentMethod: method, user: o.user || currentUser?.username } : o));
     };
 
     const handleClearPayment = (id: string) => {
-      setOrders(prev => prev.map(o => o.id === id ? { ...o, paymentMethod: undefined } : o));
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, paymentMethod: undefined, user: o.user || currentUser?.username } : o));
     };
 
     return (
@@ -1158,7 +1162,8 @@ export default function App() {
           amount,
           note,
           type: expenseType,
-          paymentMethod: expensePaymentMethod
+          paymentMethod: expensePaymentMethod,
+          user: e.user || currentUser?.username
         } : e));
         setEditingExpenseId(null);
       } else {
@@ -1168,7 +1173,8 @@ export default function App() {
           note,
           type: expenseType,
           timestamp: new Date().toISOString(),
-          paymentMethod: expensePaymentMethod
+          paymentMethod: expensePaymentMethod,
+          user: currentUser?.username
         };
         setExpenses(prev => [newExpense, ...prev]);
       }
@@ -1346,7 +1352,8 @@ export default function App() {
             unitCost: invForm.unitCost,
             totalCost: invForm.stock * invForm.unitCost,
             timestamp: new Date().toISOString(),
-            note: 'เพิ่มสินค้าเริ่มต้นในคลังหลัก'
+            note: 'เพิ่มสินค้าเริ่มต้นในคลังหลัก',
+            user: currentUser?.username
           }]);
         }
       } else if (editingInventoryItem) {
@@ -1363,7 +1370,8 @@ export default function App() {
             unitCost: invForm.unitCost,
             totalCost: Math.abs(diff) * invForm.unitCost,
             timestamp: new Date().toISOString(),
-            note: 'ปรับปรุง/แก้ไขจำนวนคลังหลัก'
+            note: 'ปรับปรุง/แก้ไขจำนวนคลังหลัก',
+            user: currentUser?.username
           }]);
         }
       }
