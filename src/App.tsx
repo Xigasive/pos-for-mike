@@ -6,10 +6,18 @@
 import { useState, useEffect, useRef } from 'react';
 import { products as initialProducts } from './data';
 import { CartItem, Product, Order, RestockRecord, ExpenseRecord, MasterInventoryItem, InventoryTransaction } from './types';
-import { ShoppingCart, Plus, Minus, CheckCircle2, AlertCircle, Trash2, Home, BarChart2, User, Search, Edit, FileText, Settings, PackagePlus, Wallet, TrendingUp, ShoppingBag, Package, ArrowRightLeft, TrendingDown, Database, Clock, History, Filter, X, Save, Gift } from 'lucide-react';
-import { sounds } from './utils/audio';
+import { ShoppingCart, Plus, Minus, CheckCircle2, AlertCircle, Trash2, Home, BarChart2, User, Search, Edit, FileText, Settings, PackagePlus, Wallet, TrendingUp, ShoppingBag, Package, ArrowRightLeft, TrendingDown, Database, Clock, History, Filter, X, Save, Gift, Volume2, VolumeX } from 'lucide-react';
+import { sounds, setMuted, getMuted } from './utils/audio';
 
 export default function App() {
+  const [isSoundMuted, setIsSoundMuted] = useState(getMuted());
+
+  const toggleSound = () => {
+    const newMuted = !isSoundMuted;
+    setMuted(newMuted);
+    setIsSoundMuted(newMuted);
+  };
+
   const [productCatalog, setProductCatalog] = useState<Product[]>(initialProducts);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
@@ -552,8 +560,17 @@ export default function App() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm lg:col-span-2">
             <h3 className="text-lg font-bold text-slate-900 mb-4">ยอดขายรวมทั้งหมดสะสม</h3>
-            <p className="text-4xl font-extrabold text-slate-900 mb-2">฿{totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-            <p className="text-sm text-green-600 font-semibold mb-6">กำไรสุทธิทั้งหมด ฿{netProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p className="text-4xl font-extrabold text-slate-900 mb-4">฿{totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <div className="flex gap-4 mb-6">
+              <div className="bg-emerald-50 px-4 py-2 rounded-xl flex-1 border border-emerald-100">
+                <p className="text-xs text-emerald-800 font-semibold flex items-center gap-1"><TrendingUp size={14}/> กำไรสุทธิทั้งหมด</p>
+                <p className="text-lg font-bold text-emerald-700">฿{netProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              </div>
+              <div className="bg-rose-50 px-4 py-2 rounded-xl flex-1 border border-rose-100">
+                <p className="text-xs text-rose-800 font-semibold flex items-center gap-1"><TrendingDown size={14}/> ต้นทุนสินค้าที่ขายไป</p>
+                <p className="text-lg font-bold text-rose-700">฿{(totalRevenue - netProfit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1010,7 +1027,20 @@ export default function App() {
                   )}
                 </div>
                 <div className="flex flex-row md:flex-col justify-between items-center md:items-end gap-3 shrink-0">
-                  <span className={`font-extrabold text-2xl ${!order.paymentMethod ? 'text-amber-600' : 'text-slate-900'}`}>฿{order.total.toFixed(2)}</span>
+                  <div className="flex flex-col items-end">
+                    <span className={`font-extrabold text-2xl ${!order.paymentMethod ? 'text-amber-600' : 'text-slate-900'}`}>฿{order.total.toFixed(2)}</span>
+                    <div className="flex items-center gap-2.5 mt-1.5 text-xs font-semibold bg-white/50 px-2 py-1 rounded-lg border border-slate-100">
+                      <span className="flex items-center gap-1 text-slate-600" title="จำนวนสินค้า">
+                        <Package size={12} /> {order.items.reduce((sum, i) => sum + i.quantity + (i.freeQuantity || 0), 0)}
+                      </span>
+                      <span className="flex items-center gap-1 text-rose-500" title="ต้นทุนรวม">
+                        <TrendingDown size={12} /> ฿{order.totalCost.toFixed(2)}
+                      </span>
+                      <span className="flex items-center gap-1 text-emerald-600" title="กำไรสุทธิ">
+                        <TrendingUp size={12} /> ฿{(order.total - order.totalCost).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
                   <div className="flex gap-2">
                     <button onClick={() => handleEditOrder(order)} className="flex items-center gap-1 text-sm font-bold text-indigo-600 hover:bg-indigo-50 px-3 py-2 rounded-xl transition-colors border border-indigo-100 bg-white">
                       <Edit size={16} /> แก้ไข
@@ -1893,6 +1923,13 @@ export default function App() {
           <span className="text-[10px] font-bold">ตั้งค่า</span>
         </button>
       </div>
+      <button
+        onClick={toggleSound}
+        className="fixed bottom-24 md:bottom-6 right-6 w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-slate-700 hover:text-indigo-600 border border-slate-200 z-[60] transition-colors"
+        title={isSoundMuted ? "เปิดเสียง" : "ปิดเสียง"}
+      >
+        {isSoundMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+      </button>
     </div>
   );
 }
