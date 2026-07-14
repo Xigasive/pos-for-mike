@@ -441,7 +441,7 @@ export default function App() {
             } else {
               setCheckoutCustomerName('');
             }
-            setIsCheckoutModalOpen(true);
+            sounds.click(); setIsCheckoutModalOpen(true);
           }}
           disabled={cart.length === 0}
           className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-[18px] rounded-xl transition-colors mt-6 text-lg"
@@ -504,7 +504,7 @@ export default function App() {
               {availableDates.length > 0 && (
                 <select 
                   value={defaultDate} 
-                  onChange={e => setDashboardDate(e.target.value)}
+                  onChange={e => { sounds.click(); setDashboardDate(e.target.value); }}
                   className="bg-slate-50 border border-slate-200 rounded-lg text-xs p-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-700"
                 >
                   {availableDates.map(d => (
@@ -963,7 +963,7 @@ export default function App() {
           {dates.length > 0 && (
             <select 
               value={historyDate} 
-              onChange={e => setHistoryDate(e.target.value)}
+              onChange={e => { sounds.click(); setHistoryDate(e.target.value); }}
               className="border border-slate-200 rounded-xl p-2.5 text-sm text-slate-900 bg-white min-w-[150px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="">เลือกวันที่ (ทั้งหมด)</option>
@@ -1017,12 +1017,12 @@ export default function App() {
                   {!order.paymentMethod ? (
                     <div className="mt-4 flex gap-2 items-center bg-amber-50 p-2 rounded-xl inline-flex border border-amber-100">
                       <span className="text-sm text-amber-800 font-bold mr-1">ยืนยันรับเงิน:</span>
-                      <button onClick={() => handleUpdatePayment(order.id, 'cash')} className="text-xs font-bold bg-white text-emerald-700 border-2 border-emerald-500 hover:bg-emerald-50 px-4 py-2 rounded-lg transition-all shadow-sm active:scale-95">💵 รับเงินสด</button>
-                      <button onClick={() => handleUpdatePayment(order.id, 'transfer')} className="text-xs font-bold bg-white text-sky-700 border-2 border-sky-500 hover:bg-sky-50 px-4 py-2 rounded-lg transition-all shadow-sm active:scale-95">📱 โอนเข้าบัญชี</button>
+                      <button onClick={() => { sounds.cash(); handleUpdatePayment(order.id, 'cash'); }} className="text-xs font-bold bg-white text-emerald-700 border-2 border-emerald-500 hover:bg-emerald-50 px-4 py-2 rounded-lg transition-all shadow-sm active:scale-95">💵 รับเงินสด</button>
+                      <button onClick={() => { sounds.cash(); handleUpdatePayment(order.id, 'transfer'); }} className="text-xs font-bold bg-white text-sky-700 border-2 border-sky-500 hover:bg-sky-50 px-4 py-2 rounded-lg transition-all shadow-sm active:scale-95">📱 โอนเข้าบัญชี</button>
                     </div>
                   ) : (
                     <div className="mt-3">
-                      <button onClick={() => handleClearPayment(order.id)} className="text-xs font-semibold text-slate-400 hover:text-slate-600 underline">แก้ไขวิธีการชำระเงิน</button>
+                      <button onClick={() => { sounds.click(); handleClearPayment(order.id); }} className="text-xs font-semibold text-slate-400 hover:text-slate-600 underline">แก้ไขวิธีการชำระเงิน</button>
                     </div>
                   )}
                 </div>
@@ -1030,14 +1030,14 @@ export default function App() {
                   <div className="flex flex-col items-end">
                     <span className={`font-extrabold text-2xl ${!order.paymentMethod ? 'text-amber-600' : 'text-slate-900'}`}>฿{order.total.toFixed(2)}</span>
                     <div className="flex items-center gap-2.5 mt-1.5 text-xs font-semibold bg-white/50 px-2 py-1 rounded-lg border border-slate-100">
-                      <span className="flex items-center gap-1 text-slate-600" title="จำนวนสินค้า">
-                        <Package size={12} /> {order.items.reduce((sum, i) => sum + i.quantity + (i.freeQuantity || 0), 0)}
+                      <span className="flex items-center gap-1 text-slate-600">
+                        <Package size={12} /> {order.items.reduce((sum, i) => sum + i.quantity + (i.freeQuantity || 0), 0)} ชิ้น
                       </span>
-                      <span className="flex items-center gap-1 text-rose-500" title="ต้นทุนรวม">
-                        <TrendingDown size={12} /> ฿{order.totalCost.toFixed(2)}
+                      <span className="flex items-center gap-1 text-rose-500">
+                        <TrendingDown size={12} /> ทุน ฿{order.totalCost.toFixed(2)}
                       </span>
-                      <span className="flex items-center gap-1 text-emerald-600" title="กำไรสุทธิ">
-                        <TrendingUp size={12} /> ฿{(order.total - order.totalCost).toFixed(2)}
+                      <span className="flex items-center gap-1 text-emerald-600">
+                        <TrendingUp size={12} /> กำไร ฿{(order.total - order.totalCost).toFixed(2)}
                       </span>
                     </div>
                   </div>
@@ -1655,7 +1655,7 @@ export default function App() {
       <div className="flex-1 p-6 md:p-8 overflow-y-auto pb-24 md:pb-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-slate-900">คลังสินค้า</h1>
-          <button onClick={handleAddClick} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-xl flex items-center gap-2 transition-colors">
+          <button onClick={() => { sounds.click(); handleAddClick(); }} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-xl flex items-center gap-2 transition-colors">
             <Plus size={18} /> เพิ่มสินค้า
           </button>
         </div>
@@ -1743,7 +1743,7 @@ export default function App() {
             <div className="flex items-center gap-3 md:hidden">
               <h1 className="text-2xl font-bold text-slate-900 flex-1">แคตตาล็อกสินค้า</h1>
               <button 
-                onClick={() => setIsMobileCartOpen(true)}
+                onClick={() => { sounds.click(); setIsMobileCartOpen(true); }}
                 className="relative p-3 bg-white rounded-xl shadow-sm border border-slate-200"
               >
                 <ShoppingCart size={24} className="text-slate-700" />
@@ -1773,7 +1773,7 @@ export default function App() {
             {categories.map(category => (
               <button
                 key={category}
-                onClick={() => setActiveCategory(category)}
+                onClick={() => { sounds.click(); setActiveCategory(category); }}
                 className={`px-5 py-2.5 rounded-full font-bold text-sm whitespace-nowrap transition-colors border ${
                   activeCategory === category
                     ? 'bg-slate-900 text-white border-slate-900'
@@ -1845,7 +1845,7 @@ export default function App() {
       {/* Mobile Cart Modal */}
       {isMobileCartOpen && activeView === 'pos' && (
         <div className="fixed inset-0 z-50 md:hidden flex flex-col bg-slate-900/40 backdrop-blur-sm">
-          <div className="flex-1" onClick={() => setIsMobileCartOpen(false)} />
+          <div className="flex-1" onClick={() => { sounds.click(); setIsMobileCartOpen(false); }} />
           <div className="bg-white w-full h-[80vh] rounded-t-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-full duration-300">
             <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-4 mb-2" />
             {CartContent()}
@@ -1876,7 +1876,7 @@ export default function App() {
             
             <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3 justify-end">
               <button 
-                onClick={() => setIsCheckoutModalOpen(false)}
+                onClick={() => { sounds.click(); setIsCheckoutModalOpen(false); }}
                 className="px-5 py-2.5 rounded-xl font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-colors"
               >
                 ยกเลิก
