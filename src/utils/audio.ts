@@ -1,64 +1,55 @@
-let audioCtx: AudioContext | null = null;
+let isMuted = false;
 
-const getCtx = () => {
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-  }
-  if (audioCtx.state === 'suspended') {
-    audioCtx.resume();
-  }
-  return audioCtx;
+export const setMuted = (muted: boolean) => {
+  isMuted = muted;
 };
 
-const playTone = (freq: number, type: OscillatorType, duration: number, vol = 0.1, slideFreq?: number) => {
+export const getMuted = () => isMuted;
+
+// ดึงเสียงจากแหล่งภายนอก (Google Actions Sound Library)
+const playExternalSound = (url: string, volume = 0.5) => {
+  if (isMuted) return;
   try {
-    const ctx = getCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, ctx.currentTime);
-    if (slideFreq) {
-      osc.frequency.exponentialRampToValueAtTime(slideFreq, ctx.currentTime + duration);
-    }
-    
-    gain.gain.setValueAtTime(vol, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
-    
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    
-    osc.start();
-    osc.stop(ctx.currentTime + duration);
+    const audio = new Audio(url);
+    audio.volume = volume;
+    audio.play().catch(e => console.log('Audio play error:', e));
   } catch (e) {
     console.error(e);
   }
 };
 
+// เสียงพูดให้กำลังใจ (Speech Synthesis API)
+const speak = (text: string) => {
+  if (isMuted) return;
+  if ('speechSynthesis' in window) {
+    // ยกเลิกเสียงที่กำลังพูดอยู่ก่อนหน้าเพื่อไม่ให้เสียงซ้อนกัน
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'th-TH';
+    utterance.rate = 1.1;
+    utterance.pitch = 1.2;
+    window.speechSynthesis.speak(utterance);
+  }
+};
+
 export const sounds = {
-  click: () => playTone(600, 'sine', 0.1, 0.05),
-  tap: () => playTone(400, 'triangle', 0.05, 0.05),
+  click: () => playExternalSound('https://actions.google.com/sounds/v1/water/water_drop.ogg', 0.3),
+  tap: () => playExternalSound('https://actions.google.com/sounds/v1/ui/button_click.ogg', 0.3),
   add: () => {
-    playTone(800, 'sine', 0.1, 0.05);
-    setTimeout(() => playTone(1200, 'sine', 0.15, 0.05), 80);
+    playExternalSound('https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg', 0.4);
   },
   remove: () => {
-    playTone(500, 'sine', 0.1, 0.05);
-    setTimeout(() => playTone(300, 'sine', 0.15, 0.05), 80);
+    playExternalSound('https://actions.google.com/sounds/v1/cartoon/slip_slop.ogg', 0.3);
   },
   success: () => {
-    playTone(523.25, 'sine', 0.1, 0.08); // C5
-    setTimeout(() => playTone(659.25, 'sine', 0.1, 0.08), 100); // E5
-    setTimeout(() => playTone(783.99, 'sine', 0.1, 0.08), 200); // G5
-    setTimeout(() => playTone(1046.50, 'sine', 0.3, 0.08), 300); // C6
+    playExternalSound('https://actions.google.com/sounds/v1/cartoon/magic_chime.ogg', 0.5);
+    setTimeout(() => speak('เยี่ยมมากค่ะ ทำรายการสำเร็จ'), 500);
   },
   error: () => {
-    playTone(300, 'square', 0.2, 0.02, 200);
-    setTimeout(() => playTone(200, 'square', 0.3, 0.02, 150), 200);
+    playExternalSound('https://actions.google.com/sounds/v1/alarms/beep_short.ogg', 0.3);
   },
   cash: () => {
-    playTone(1000, 'square', 0.1, 0.03);
-    setTimeout(() => playTone(2000, 'sine', 0.2, 0.03), 50);
-    setTimeout(() => playTone(3000, 'triangle', 0.3, 0.03), 100);
+    playExternalSound('https://actions.google.com/sounds/v1/cartoon/clown_horn.ogg', 0.3);
+    setTimeout(() => speak('รับยอดเรียบร้อย รวยๆ เฮงๆ นะคะ'), 300);
   }
 };
