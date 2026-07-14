@@ -82,3 +82,12 @@ export interface User {
   username: string;
   pin: string; // simplistic auth using a pin or password
 }
+
+export interface AuditLog {
+  id: string;
+  userId: string;
+  username: string;
+  action: string;
+  details: string;
+  timestamp: string;
+}
