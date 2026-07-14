@@ -17,7 +17,8 @@ const getCtx = () => {
   return audioCtx;
 };
 
-const playModernTone = (
+// Modern, Glassy, Sci-Fi UI Sounds
+const playGlassyTone = (
   freq: number,
   type: OscillatorType,
   duration: number,
@@ -37,9 +38,8 @@ const playModernTone = (
       osc.frequency.exponentialRampToValueAtTime(slideFreq, ctx.currentTime + (slideDuration || duration));
     }
 
-    // Quick attack, exponential decay for a snappy modern UI sound
     gain.gain.setValueAtTime(0, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + 0.005);
+    gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + 0.01);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
 
     osc.connect(gain);
@@ -53,27 +53,37 @@ const playModernTone = (
 };
 
 export const sounds = {
-  click: () => playModernTone(1400, 'sine', 0.05, 0.05, 1000, 0.05),
-  tap: () => playModernTone(800, 'triangle', 0.05, 0.05, 600, 0.05),
+  // Soft, crisp bubble pop for clicks
+  click: () => {
+    playGlassyTone(900, 'sine', 0.08, 0.08, 600, 0.08);
+  },
+  tap: () => {
+    playGlassyTone(700, 'triangle', 0.05, 0.05, 500, 0.05);
+  },
+  // Futuristic slide up
   add: () => {
-    playModernTone(880, 'sine', 0.1, 0.05, 1200, 0.1);
-    setTimeout(() => playModernTone(1760, 'sine', 0.15, 0.05), 80);
+    playGlassyTone(400, 'sine', 0.1, 0.1, 800, 0.1);
+    setTimeout(() => playGlassyTone(800, 'sine', 0.1, 0.1, 1200, 0.1), 50);
   },
+  // Futuristic slide down
   remove: () => {
-    playModernTone(600, 'triangle', 0.1, 0.05, 300, 0.1);
+    playGlassyTone(800, 'triangle', 0.1, 0.05, 400, 0.1);
   },
+  // Success / Achievement chime
   success: () => {
-    playModernTone(523.25, 'sine', 0.15, 0.05);
-    setTimeout(() => playModernTone(659.25, 'sine', 0.15, 0.05), 80);
-    setTimeout(() => playModernTone(1046.50, 'sine', 0.3, 0.05), 160);
+    playGlassyTone(523.25, 'sine', 0.2, 0.1); // C5
+    setTimeout(() => playGlassyTone(659.25, 'sine', 0.2, 0.1), 80); // E5
+    setTimeout(() => playGlassyTone(783.99, 'sine', 0.2, 0.1), 160); // G5
+    setTimeout(() => playGlassyTone(1046.50, 'sine', 0.5, 0.15), 240); // C6
   },
+  // Soft error boop
   error: () => {
-    playModernTone(300, 'sawtooth', 0.15, 0.05, 250, 0.15);
-    setTimeout(() => playModernTone(250, 'sawtooth', 0.2, 0.05, 200, 0.2), 120);
+    playGlassyTone(200, 'sawtooth', 0.2, 0.05, 150, 0.2);
+    setTimeout(() => playGlassyTone(150, 'sawtooth', 0.3, 0.05, 100, 0.3), 150);
   },
+  // High-tech check-out / cash register replacement (modern scan/accept sound)
   cash: () => {
-    // High-tech success beep like contactless payment
-    playModernTone(1500, 'sine', 0.1, 0.08);
-    setTimeout(() => playModernTone(2000, 'sine', 0.3, 0.1), 100);
+    playGlassyTone(1200, 'sine', 0.1, 0.08, 1400, 0.1);
+    setTimeout(() => playGlassyTone(1800, 'sine', 0.3, 0.12), 100);
   }
 };
