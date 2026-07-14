@@ -355,7 +355,7 @@ export default function App() {
         </h2>
         <div className="flex items-center gap-2">
           {editingOrderId && (
-            <button onClick={() => { setEditingOrderId(null); clearCart(); }} className="text-xs font-semibold text-slate-500 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors">
+            <button onClick={() => { sounds.click(); setEditingOrderId(null); clearCart(); }} className="text-xs font-semibold text-slate-500 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors">
               ยกเลิกแก้ไข
             </button>
           )}
@@ -468,13 +468,28 @@ export default function App() {
     const totalTransferExpense = restocks.filter(r => r.paymentMethod === 'transfer').reduce((sum, r) => sum + r.totalCost, 0) + expenses.filter(e => e.type !== 'income' && e.paymentMethod === 'transfer').reduce((sum, e) => sum + e.amount, 0);
     const transferBalance = totalTransferIncome - totalTransferExpense;
 
-    const availableDates = Array.from(new Set(orders.map(o => new Date(o.timestamp).toLocaleDateString('en-CA')))).sort((a,b) => b.localeCompare(a));
+    const allDates = new Set([
+      ...orders.map(o => new Date(o.timestamp).toLocaleDateString('en-CA')),
+      ...restocks.map(r => new Date(r.timestamp).toLocaleDateString('en-CA')),
+      ...expenses.map(e => new Date(e.timestamp).toLocaleDateString('en-CA'))
+    ]);
+    const availableDates = Array.from(allDates).sort((a,b) => b.localeCompare(a));
     const defaultDate = dashboardDate || (availableDates.length > 0 ? availableDates[0] : '');
+    
     const dailyOrders = defaultDate ? orders.filter(o => new Date(o.timestamp).toLocaleDateString('en-CA') === defaultDate) : orders;
+    const dailyRestocks = defaultDate ? restocks.filter(r => new Date(r.timestamp).toLocaleDateString('en-CA') === defaultDate) : restocks;
+    const dailyExpensesList = defaultDate ? expenses.filter(e => new Date(e.timestamp).toLocaleDateString('en-CA') === defaultDate) : expenses;
+    
     const dailyRevenue = dailyOrders.reduce((sum, o) => sum + o.subtotal, 0);
     const dailyProfit = dailyRevenue - dailyOrders.reduce((sum, o) => sum + o.totalCost, 0);
     const dailyCashRevenue = dailyOrders.filter(o => o.paymentMethod === 'cash' || !o.paymentMethod).reduce((sum, o) => sum + o.subtotal, 0);
     const dailyTransferRevenue = dailyOrders.filter(o => o.paymentMethod === 'transfer').reduce((sum, o) => sum + o.subtotal, 0);
+    
+    const dailyPurchases = dailyRestocks.reduce((sum, r) => sum + r.totalCost, 0);
+    const dailyOtherExpenses = dailyExpensesList.filter(e => e.type !== 'income').reduce((sum, e) => sum + e.amount, 0);
+    const dailyOtherIncome = dailyExpensesList.filter(e => e.type === 'income').reduce((sum, e) => sum + e.amount, 0);
+    const dailyRemainingBalance = dailyRevenue + dailyOtherIncome - dailyPurchases - dailyOtherExpenses;
+
 
     return (
       <div className="flex-1 p-6 md:p-8 overflow-y-auto pb-24 md:pb-8 bg-slate-50/50">
@@ -500,7 +515,7 @@ export default function App() {
               <ShoppingBag size={100} />
             </div>
             <div className="flex justify-between items-start mb-2 relative z-10">
-              <h3 className="text-slate-500 font-medium">ยอดขายรายวัน</h3>
+              <h3 className="text-slate-500 font-medium">สรุปยอดประจำวัน</h3>
               {availableDates.length > 0 && (
                 <select 
                   value={defaultDate} 
@@ -513,21 +528,51 @@ export default function App() {
                 </select>
               )}
             </div>
-            <p className="text-3xl font-extrabold text-slate-900 relative z-10 mb-3">฿{dailyRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <div className="relative z-10 mb-4">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">เงินคงเหลือรายวัน</span>
+              <p className={`text-3xl font-extrabold ${dailyRemainingBalance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                ฿{dailyRemainingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
             
-            <div className="flex gap-2 mb-3 relative z-10">
-              <div className="bg-emerald-50 px-2 py-1 rounded-md flex-1">
-                <div className="text-[10px] text-emerald-600 font-bold">เงินสด</div>
-                <div className="text-xs font-bold text-emerald-700">฿{dailyCashRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div className="space-y-2 relative z-10">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-slate-500">ยอดขาย ({dailyOrders.length} ออเดอร์)</span>
+                <span className="font-bold text-slate-900">+ ฿{dailyRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
-              <div className="bg-sky-50 px-2 py-1 rounded-md flex-1">
-                <div className="text-[10px] text-sky-600 font-bold">โอนเงิน</div>
-                <div className="text-xs font-bold text-sky-700">฿{dailyTransferRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-              </div>
+              {dailyOtherIncome > 0 && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-500">รายรับอื่นๆ</span>
+                  <span className="font-bold text-emerald-600">+ ฿{dailyOtherIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              )}
+              {dailyPurchases > 0 && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-500">ซื้อเข้าสต็อก</span>
+                  <span className="font-bold text-rose-600">- ฿{dailyPurchases.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              )}
+              {dailyOtherExpenses > 0 && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-500">ค่าใช้จ่ายอื่นๆ</span>
+                  <span className="font-bold text-rose-600">- ฿{dailyOtherExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              )}
             </div>
 
-            <p className="text-sm text-green-600 font-semibold mt-1 flex items-center gap-1 relative z-10">กำไรประเมิน ฿{dailyProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-            <p className="text-xs text-slate-400 mt-1 relative z-10">จำนวน {dailyOrders.length} ออเดอร์</p>
+            <div className="mt-4 pt-3 border-t border-slate-100 relative z-10">
+              <p className="text-xs text-slate-500 font-semibold mb-1">สัดส่วนยอดขาย</p>
+              <div className="flex gap-2">
+                <div className="bg-emerald-50 px-2 py-1 rounded-md flex-1">
+                  <div className="text-[10px] text-emerald-600 font-bold">เงินสด</div>
+                  <div className="text-xs font-bold text-emerald-700">฿{dailyCashRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                </div>
+                <div className="bg-sky-50 px-2 py-1 rounded-md flex-1">
+                  <div className="text-[10px] text-sky-600 font-bold">โอนเงิน</div>
+                  <div className="text-xs font-bold text-sky-700">฿{dailyTransferRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4">
@@ -784,17 +829,17 @@ export default function App() {
                 <label className="flex flex-col text-sm font-semibold text-slate-500">
                   จำนวนนำเข้า ({bulkUnit})
                   <div className="flex mt-1 border border-slate-200 rounded-lg bg-white overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
-                    <button type="button" onClick={() => setBulkQty(Math.max(1, (bulkQty || 0) - 1))} className="px-4 bg-slate-50 border-r border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Minus size={16} /></button>
+                    <button type="button" onClick={() => { sounds.tap(); setBulkQty(Math.max(1, (bulkQty || 0) - 1)); }} className="px-4 bg-slate-50 border-r border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Minus size={16} /></button>
                     <input type="number" min="1" className="w-full p-2.5 text-sm text-slate-900 text-center outline-none" value={bulkQty || ''} onChange={e => setBulkQty(parseFloat(e.target.value) || 0)} />
-                    <button type="button" onClick={() => setBulkQty((bulkQty || 0) + 1)} className="px-4 bg-slate-50 border-l border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Plus size={16} /></button>
+                    <button type="button" onClick={() => { sounds.tap(); setBulkQty((bulkQty || 0) + 1); }} className="px-4 bg-slate-50 border-l border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Plus size={16} /></button>
                   </div>
                 </label>
                 <label className="flex flex-col text-sm font-semibold text-slate-500">
                   ต้นทุนต่อ 1 {bulkUnit} (฿)
                   <div className="flex mt-1 border border-slate-200 rounded-lg bg-white overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
-                    <button type="button" onClick={() => setBulkCost(Math.max(0, (bulkCost || 0) - 10))} className="px-4 bg-slate-50 border-r border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Minus size={16} /></button>
+                    <button type="button" onClick={() => { sounds.tap(); setBulkCost(Math.max(0, (bulkCost || 0) - 10)); }} className="px-4 bg-slate-50 border-r border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Minus size={16} /></button>
                     <input type="number" step="0.01" min="0" className="w-full p-2.5 text-sm text-slate-900 text-center outline-none" value={bulkCost || ''} onChange={e => setBulkCost(parseFloat(e.target.value) || 0)} />
-                    <button type="button" onClick={() => setBulkCost((bulkCost || 0) + 10)} className="px-4 bg-slate-50 border-l border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Plus size={16} /></button>
+                    <button type="button" onClick={() => { sounds.tap(); setBulkCost((bulkCost || 0) + 10); }} className="px-4 bg-slate-50 border-l border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Plus size={16} /></button>
                   </div>
                 </label>
               </>
@@ -823,9 +868,9 @@ export default function App() {
                 <label className="flex flex-col text-sm font-semibold text-slate-500">
                   จำนวนที่แบ่ง ({inventoryItems.find(i => i.id === restockMasterItemId)?.unit || 'หน่วย'})
                   <div className="flex mt-1 border border-slate-200 rounded-lg bg-white overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
-                    <button type="button" onClick={() => setBulkQty(Math.max(1, (bulkQty || 0) - 1))} className="px-4 bg-slate-50 border-r border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Minus size={16} /></button>
+                    <button type="button" onClick={() => { sounds.tap(); setBulkQty(Math.max(1, (bulkQty || 0) - 1)); }} className="px-4 bg-slate-50 border-r border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Minus size={16} /></button>
                     <input type="number" min="1" className="w-full p-2.5 text-sm text-slate-900 text-center outline-none" value={bulkQty || ''} onChange={e => setBulkQty(parseFloat(e.target.value) || 0)} />
-                    <button type="button" onClick={() => setBulkQty((bulkQty || 0) + 1)} className="px-4 bg-slate-50 border-l border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Plus size={16} /></button>
+                    <button type="button" onClick={() => { sounds.tap(); setBulkQty((bulkQty || 0) + 1); }} className="px-4 bg-slate-50 border-l border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Plus size={16} /></button>
                   </div>
                 </label>
                 {inventoryItems.find(i => i.id === restockMasterItemId) && <div className="text-sm font-semibold text-indigo-600 bg-indigo-50 p-2.5 rounded-lg border border-indigo-100 flex items-center gap-2 mt-1"><CheckCircle2 size={16} /> ใช้ทุนจากคลังหลัก (฿{inventoryItems.find(i => i.id === restockMasterItemId)?.unitCost.toFixed(2)}/{inventoryItems.find(i => i.id === restockMasterItemId)?.unit})</div>}
@@ -848,9 +893,9 @@ export default function App() {
             <label className="flex flex-col text-sm font-semibold text-slate-500">
               แปลงเป็นจำนวนที่ขายได้ (ชิ้น)
               <div className="flex mt-1 border border-slate-200 rounded-lg bg-white overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
-                <button type="button" onClick={() => setQty(Math.max(1, (qty || 0) - 1))} className="px-4 bg-slate-50 border-r border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Minus size={16} /></button>
+                <button type="button" onClick={() => { sounds.tap(); setQty(Math.max(1, (qty || 0) - 1)); }} className="px-4 bg-slate-50 border-r border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Minus size={16} /></button>
                 <input type="number" min="1" className="w-full p-2.5 text-sm text-slate-900 text-center outline-none" value={qty || ''} onChange={e => setQty(parseInt(e.target.value) || 0)} />
-                <button type="button" onClick={() => setQty((qty || 0) + 1)} className="px-4 bg-slate-50 border-l border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Plus size={16} /></button>
+                <button type="button" onClick={() => { sounds.tap(); setQty((qty || 0) + 1); }} className="px-4 bg-slate-50 border-l border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Plus size={16} /></button>
               </div>
             </label>
             
@@ -858,9 +903,9 @@ export default function App() {
               <label className="flex flex-col text-sm font-semibold text-slate-500">
                 ต้นทุนต่อชิ้น (฿)
                 <div className="flex mt-1 border border-slate-200 rounded-lg bg-slate-50 overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
-                  <button type="button" onClick={() => setUnitCost(Math.max(0, (unitCost || 0) - 1))} className="px-4 bg-slate-100 border-r border-slate-200 hover:bg-slate-200 text-slate-600 flex items-center justify-center"><Minus size={16} /></button>
+                  <button type="button" onClick={() => { sounds.tap(); setUnitCost(Math.max(0, (unitCost || 0) - 1)); }} className="px-4 bg-slate-100 border-r border-slate-200 hover:bg-slate-200 text-slate-600 flex items-center justify-center"><Minus size={16} /></button>
                   <input type="number" step="0.01" min="0" className="w-full p-2.5 text-sm text-slate-900 text-center outline-none bg-transparent" value={(qty > 0 && bulkCost > 0) ? (bulkCost * bulkQty / qty).toFixed(2) : (unitCost || '')} onChange={e => setUnitCost(parseFloat(e.target.value) || 0)} />
-                  <button type="button" onClick={() => setUnitCost((unitCost || 0) + 1)} className="px-4 bg-slate-100 border-l border-slate-200 hover:bg-slate-200 text-slate-600 flex items-center justify-center"><Plus size={16} /></button>
+                  <button type="button" onClick={() => { sounds.tap(); setUnitCost((unitCost || 0) + 1); }} className="px-4 bg-slate-100 border-l border-slate-200 hover:bg-slate-200 text-slate-600 flex items-center justify-center"><Plus size={16} /></button>
                 </div>
                 {qty > 0 && bulkCost > 0 && <span className="text-xs text-indigo-500 mt-1">* คำนวณอัตโนมัติจากจำนวนนำเข้า</span>}
               </label>
@@ -868,15 +913,15 @@ export default function App() {
 
             {!restockMasterItemId && (<label className="flex flex-col text-sm font-semibold text-slate-500">วิธีการชำระเงิน
                 <div className="flex mt-1 bg-slate-100 p-1 rounded-lg">
-                  <button onClick={() => setRestockPaymentMethod('cash')} className={`flex-1 text-xs font-bold py-2 rounded-md transition-all ${restockPaymentMethod === 'cash' ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>เงินสด</button>
-                  <button onClick={() => setRestockPaymentMethod('transfer')} className={`flex-1 text-xs font-bold py-2 rounded-md transition-all ${restockPaymentMethod === 'transfer' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>โอนเงิน</button>
+                  <button onClick={() => { sounds.click(); setRestockPaymentMethod('cash'); }} className={`flex-1 text-xs font-bold py-2 rounded-md transition-all ${restockPaymentMethod === 'cash' ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>เงินสด</button>
+                  <button onClick={() => { sounds.click(); setRestockPaymentMethod('transfer'); }} className={`flex-1 text-xs font-bold py-2 rounded-md transition-all ${restockPaymentMethod === 'transfer' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>โอนเงิน</button>
                 </div>
               </label>
             )}
 
             <div className="flex gap-2 items-end pt-2 lg:pt-0 md:col-span-2 lg:col-span-3 lg:justify-end">
               {editingRestockId && (
-                <button onClick={() => { setEditingRestockId(null); setSelectedProductId(''); setBulkUnit('แพ็ค'); setBulkQty(1); setBulkCost(0); setQty(0); setUnitCost(0); setRestockPaymentMethod('cash'); setRestockMasterItemId(''); }} className="px-6 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 rounded-lg transition-colors">
+                <button onClick={() => { sounds.click(); setEditingRestockId(null); setSelectedProductId(''); setBulkUnit('แพ็ค'); setBulkQty(1); setBulkCost(0); setQty(0); setUnitCost(0); setRestockPaymentMethod('cash'); setRestockMasterItemId(''); }} className="px-6 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 rounded-lg transition-colors">
                   ยกเลิก
                 </button>
               )}
@@ -929,7 +974,7 @@ export default function App() {
                   </div>
                 </div>
                 <div className="flex gap-2 shrink-0">
-                  <button onClick={() => handleEdit(r)} className="flex items-center gap-1 text-sm font-bold text-indigo-600 hover:bg-indigo-50 px-3 py-2 rounded-xl transition-colors border border-indigo-100">
+                  <button onClick={() => { sounds.tap(); handleEdit(r); }} className="flex items-center gap-1 text-sm font-bold text-indigo-600 hover:bg-indigo-50 px-3 py-2 rounded-xl transition-colors border border-indigo-100">
                     <Edit size={16} /> แก้ไข
                   </button>
                   <button onClick={() => handleDelete(r)} className="flex items-center gap-1 text-sm font-bold text-red-600 hover:bg-red-50 px-3 py-2 rounded-xl transition-colors border border-red-100">
@@ -1029,16 +1074,12 @@ export default function App() {
                 <div className="flex flex-row md:flex-col justify-between items-center md:items-end gap-3 shrink-0">
                   <div className="flex flex-col items-end">
                     <span className={`font-extrabold text-2xl ${!order.paymentMethod ? 'text-amber-600' : 'text-slate-900'}`}>฿{order.total.toFixed(2)}</span>
-                    <div className="flex items-center gap-2.5 mt-1.5 text-xs font-semibold bg-white/50 px-2 py-1 rounded-lg border border-slate-100">
-                      <span className="flex items-center gap-1 text-slate-600">
-                        <Package size={12} /> {order.items.reduce((sum, i) => sum + i.quantity + (i.freeQuantity || 0), 0)} ชิ้น
-                      </span>
-                      <span className="flex items-center gap-1 text-rose-500">
-                        <TrendingDown size={12} /> ทุน ฿{order.totalCost.toFixed(2)}
-                      </span>
-                      <span className="flex items-center gap-1 text-emerald-600">
-                        <TrendingUp size={12} /> กำไร ฿{(order.total - order.totalCost).toFixed(2)}
-                      </span>
+                    <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs font-medium text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                      <span>จำนวน {order.items.reduce((sum, i) => sum + i.quantity + (i.freeQuantity || 0), 0)} ชิ้น</span>
+                      <span className="text-slate-300">|</span>
+                      <span>ต้นทุน ฿{order.totalCost.toFixed(2)}</span>
+                      <span className="text-slate-300">|</span>
+                      <span className="text-emerald-600 font-bold">กำไร ฿{(order.total - order.totalCost).toFixed(2)}</span>
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -1136,21 +1177,21 @@ export default function App() {
             <label className="flex flex-col text-sm font-semibold text-slate-500">
               จำนวนเงิน (฿)
               <div className="flex mt-1 border border-slate-200 rounded-lg bg-white overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
-                <button type="button" onClick={() => setAmount(Math.max(0, (amount || 0) - 10))} className="px-3 bg-slate-50 border-r border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Minus size={16} /></button>
+                <button type="button" onClick={() => { sounds.tap(); setAmount(Math.max(0, (amount || 0) - 10)); }} className="px-3 bg-slate-50 border-r border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Minus size={16} /></button>
                 <input type="number" step="0.01" min="0" className="w-full p-2.5 text-sm text-slate-900 text-center outline-none" value={amount || ''} onChange={e => setAmount(parseFloat(e.target.value) || 0)} />
-                <button type="button" onClick={() => setAmount((amount || 0) + 10)} className="px-3 bg-slate-50 border-l border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Plus size={16} /></button>
+                <button type="button" onClick={() => { sounds.tap(); setAmount((amount || 0) + 10); }} className="px-3 bg-slate-50 border-l border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Plus size={16} /></button>
               </div>
             </label>
             <label className="flex flex-col text-sm font-semibold text-slate-500">
               ช่องทาง
               <div className="flex mt-1 bg-slate-100 p-1 rounded-lg">
-                <button onClick={() => setExpensePaymentMethod('cash')} className={`flex-1 text-xs font-bold py-2 rounded-md transition-all ${expensePaymentMethod === 'cash' ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>เงินสด</button>
-                <button onClick={() => setExpensePaymentMethod('transfer')} className={`flex-1 text-xs font-bold py-2 rounded-md transition-all ${expensePaymentMethod === 'transfer' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>โอนเงิน</button>
+                <button onClick={() => { sounds.click(); setExpensePaymentMethod('cash'); }} className={`flex-1 text-xs font-bold py-2 rounded-md transition-all ${expensePaymentMethod === 'cash' ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>เงินสด</button>
+                <button onClick={() => { sounds.click(); setExpensePaymentMethod('transfer'); }} className={`flex-1 text-xs font-bold py-2 rounded-md transition-all ${expensePaymentMethod === 'transfer' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>โอนเงิน</button>
               </div>
             </label>
             <div className="flex gap-2 lg:col-span-1">
               {editingExpenseId && (
-                <button onClick={() => { setEditingExpenseId(null); setAmount(0); setNote(''); setExpensePaymentMethod('cash'); }} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 rounded-lg transition-colors">
+                <button onClick={() => { sounds.click(); setEditingExpenseId(null); setAmount(0); setNote(''); setExpensePaymentMethod('cash'); }} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 rounded-lg transition-colors">
                   ยกเลิก
                 </button>
               )}
@@ -1206,7 +1247,7 @@ export default function App() {
                     {e.type === 'income' ? '+' : '-'}฿{e.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                   <div className="flex gap-2">
-                    <button onClick={() => handleEdit(e)} className="flex items-center gap-1 text-sm font-bold text-indigo-600 hover:bg-indigo-50 px-3 py-2 rounded-xl transition-colors border border-indigo-100">
+                    <button onClick={() => { sounds.tap(); handleEdit(e); }} className="flex items-center gap-1 text-sm font-bold text-indigo-600 hover:bg-indigo-50 px-3 py-2 rounded-xl transition-colors border border-indigo-100">
                       <Edit size={16} /> แก้ไข
                     </button>
                     <button onClick={() => handleDelete(e.id)} className="flex items-center gap-1 text-sm font-bold text-red-600 hover:bg-red-50 px-3 py-2 rounded-xl transition-colors border border-red-100">
@@ -1306,7 +1347,7 @@ export default function App() {
               <Package size={24} className="text-indigo-600" />
               {isInvAdding ? 'เพิ่มรายการคลังหลัก' : 'แก้ไขรายการคลังหลัก'}
             </h2>
-            <button onClick={() => { setIsInvAdding(false); setEditingInventoryItem(null); setInvForm(null); }} className="text-slate-400 hover:text-slate-600 transition-colors p-1">
+            <button onClick={() => { sounds.click(); setIsInvAdding(false); setEditingInventoryItem(null); setInvForm(null); }} className="text-slate-400 hover:text-slate-600 transition-colors p-1">
               <X size={24} />
             </button>
           </div>
@@ -1365,7 +1406,7 @@ export default function App() {
           </div>
 
           <div className="flex flex-col sm:flex-row justify-end gap-3 mt-8 pt-6 border-t border-slate-100">
-            <button onClick={() => { setIsInvAdding(false); setEditingInventoryItem(null); setInvForm(null); }} className="px-6 py-3 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">ยกเลิก</button>
+            <button onClick={() => { sounds.click(); setIsInvAdding(false); setEditingInventoryItem(null); setInvForm(null); }} className="px-6 py-3 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">ยกเลิก</button>
             <button onClick={handleSaveInv} disabled={!invForm.name} className="px-8 py-3 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2">
               <Save size={18} /> บันทึกรายการ
             </button>
@@ -1404,13 +1445,13 @@ export default function App() {
           {/* Navigation Tabs */}
           <div className="flex p-1 bg-slate-200/50 rounded-xl mb-6 w-full sm:w-fit">
             <button 
-              onClick={() => setInvTab('items')} 
+              onClick={() => { sounds.click(); setInvTab('items'); }} 
               className={`flex-1 sm:flex-none px-6 py-2.5 text-sm font-bold rounded-lg transition-all ${invTab === 'items' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
             >
               รายการในคลัง
             </button>
             <button 
-              onClick={() => setInvTab('history')} 
+              onClick={() => { sounds.click(); setInvTab('history'); }} 
               className={`flex-1 sm:flex-none px-6 py-2.5 text-sm font-bold rounded-lg transition-all ${invTab === 'history' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
             >
               ประวัติความเคลื่อนไหว
@@ -1455,7 +1496,7 @@ export default function App() {
                       </div>
 
                       <div className="flex gap-2">
-                        <button onClick={() => handleEditInv(item)} className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors">
+                        <button onClick={() => { sounds.tap(); handleEditInv(item); }} className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors">
                           <Edit size={16} /> แก้ไข
                         </button>
                         <button onClick={() => handleDeleteInv(item.id)} className="w-11 flex items-center justify-center text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-xl transition-colors">
@@ -1616,23 +1657,23 @@ export default function App() {
             </label>
             <label className="flex flex-col text-xs font-semibold text-slate-500">ราคา (฿)
               <div className="flex mt-1 border border-slate-200 rounded bg-white overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
-                <button type="button" onClick={() => setForm({...form, price: Math.max(0, (form.price || 0) - 5)})} className="px-2 bg-slate-50 border-r border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Minus size={14} /></button>
+                <button type="button" onClick={() => { sounds.tap(); setForm({...form, price: Math.max(0, (form.price || 0) - 5)}); }} className="px-2 bg-slate-50 border-r border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Minus size={14} /></button>
                 <input type="number" step="0.01" className="w-full p-2 text-sm text-slate-900 text-center outline-none" value={form.price === 0 ? '' : form.price} onChange={e => setForm({...form, price: parseFloat(e.target.value) || 0})} />
-                <button type="button" onClick={() => setForm({...form, price: (form.price || 0) + 5})} className="px-2 bg-slate-50 border-l border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Plus size={14} /></button>
+                <button type="button" onClick={() => { sounds.tap(); setForm({...form, price: (form.price || 0) + 5}); }} className="px-2 bg-slate-50 border-l border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Plus size={14} /></button>
               </div>
             </label>
             <label className="flex flex-col text-xs font-semibold text-slate-500">ต้นทุน (฿)
               <div className="flex mt-1 border border-slate-200 rounded bg-white overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
-                <button type="button" onClick={() => setForm({...form, cost: Math.max(0, (form.cost || 0) - 5)})} className="px-2 bg-slate-50 border-r border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Minus size={14} /></button>
+                <button type="button" onClick={() => { sounds.tap(); setForm({...form, cost: Math.max(0, (form.cost || 0) - 5)}); }} className="px-2 bg-slate-50 border-r border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Minus size={14} /></button>
                 <input type="number" step="0.01" className="w-full p-2 text-sm text-slate-900 text-center outline-none" value={form.cost === 0 ? '' : form.cost} onChange={e => setForm({...form, cost: parseFloat(e.target.value) || 0})} />
-                <button type="button" onClick={() => setForm({...form, cost: (form.cost || 0) + 5})} className="px-2 bg-slate-50 border-l border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Plus size={14} /></button>
+                <button type="button" onClick={() => { sounds.tap(); setForm({...form, cost: (form.cost || 0) + 5}); }} className="px-2 bg-slate-50 border-l border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Plus size={14} /></button>
               </div>
             </label>
             <label className="flex flex-col text-xs font-semibold text-slate-500">คงเหลือ
               <div className="flex mt-1 border border-slate-200 rounded bg-white overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
-                <button type="button" onClick={() => setForm({...form, stock: Math.max(0, (form.stock || 0) - 1)})} className="px-2 bg-slate-50 border-r border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Minus size={14} /></button>
+                <button type="button" onClick={() => { sounds.tap(); setForm({...form, stock: Math.max(0, (form.stock || 0) - 1)}); }} className="px-2 bg-slate-50 border-r border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Minus size={14} /></button>
                 <input type="number" className="w-full p-2 text-sm text-slate-900 text-center outline-none" value={form.stock === 0 ? '' : form.stock} onChange={e => setForm({...form, stock: parseInt(e.target.value) || 0})} />
-                <button type="button" onClick={() => setForm({...form, stock: (form.stock || 0) + 1})} className="px-2 bg-slate-50 border-l border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Plus size={14} /></button>
+                <button type="button" onClick={() => { sounds.tap(); setForm({...form, stock: (form.stock || 0) + 1}); }} className="px-2 bg-slate-50 border-l border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center"><Plus size={14} /></button>
               </div>
             </label>
           </div>
@@ -1643,7 +1684,7 @@ export default function App() {
               </button>
             ) : <div />}
             <div className="flex gap-2">
-              <button onClick={handleCancel} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-lg text-sm transition-colors">ยกเลิก</button>
+              <button onClick={() => { sounds.click(); handleCancel(); }} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-lg text-sm transition-colors">ยกเลิก</button>
               <button onClick={handleSave} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-sm transition-colors">บันทึก</button>
             </div>
           </div>
@@ -1695,7 +1736,7 @@ export default function App() {
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">คงเหลือ</span>
                       <span className={`font-extrabold text-lg ${p.stock <= 5 ? 'text-red-500' : 'text-slate-900'}`}>{p.stock}</span>
                     </div>
-                    <button onClick={() => handleEditClick(p)} className="flex items-center gap-1 text-sm font-bold text-indigo-600 hover:bg-indigo-50 px-3 py-2 rounded-xl transition-colors border border-indigo-100">
+                    <button onClick={() => { sounds.tap(); handleEditClick(p); }} className="flex items-center gap-1 text-sm font-bold text-indigo-600 hover:bg-indigo-50 px-3 py-2 rounded-xl transition-colors border border-indigo-100">
                       <Edit size={16} /> แก้ไข
                     </button>
                   </div>
