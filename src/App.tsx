@@ -5,8 +5,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { products as initialProducts } from './data';
-import { CartItem, Product, Order, RestockRecord, ExpenseRecord, MasterInventoryItem, InventoryTransaction } from './types';
-import { ShoppingCart, Plus, Minus, CheckCircle2, AlertCircle, Trash2, Home, BarChart2, User, Search, Edit, FileText, Settings, PackagePlus, Wallet, TrendingUp, ShoppingBag, Package, ArrowRightLeft, TrendingDown, Database, Clock, History, Filter, X, Save, Gift, Volume2, VolumeX, Landmark, CreditCard } from 'lucide-react';
+import { CartItem, Product, Order, RestockRecord, ExpenseRecord, MasterInventoryItem, InventoryTransaction, User as UserType } from './types';
+import { ShoppingCart, Plus, Minus, CheckCircle2, AlertCircle, Trash2, Home, BarChart2, User, Search, Edit, FileText, Settings, PackagePlus, Wallet, TrendingUp, ShoppingBag, Package, ArrowRightLeft, TrendingDown, Database, Clock, History, Filter, X, Save, Gift, Volume2, VolumeX, Landmark, CreditCard, LogOut } from 'lucide-react';
 import { sounds, setMuted, getMuted } from './utils/audio';
 
 export default function App() {
@@ -29,6 +29,14 @@ export default function App() {
   const [inventoryTransactions, setInventoryTransactions] = useState<InventoryTransaction[]>([]);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [lastSyncedHash, setLastSyncedHash] = useState('');
+  const [users, setUsers] = useState<UserType[]>([]);
+  const [currentUser, setCurrentUser] = useState<UserType | null>(null);
+  
+  // Login/Register States
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [authUsername, setAuthUsername] = useState('');
+  const [authPin, setAuthPin] = useState('');
+  const [authError, setAuthError] = useState('');
 
   // RestockView state
   const [selectedProductId, setSelectedProductId] = useState<string>('');
@@ -105,6 +113,7 @@ export default function App() {
           setExpenses(data.expenses || []);
           setInventoryItems(data.inventoryItems || []);
           setInventoryTransactions(data.inventoryTransactions || []);
+          setUsers(data.users || []);
           setLastSyncedHash(JSON.stringify(data));
         } else {
           fallbackLocal();
@@ -119,6 +128,10 @@ export default function App() {
     };
 
     const fallbackLocal = () => {
+      const savedUsers = localStorage.getItem('pos_users');
+      if (savedUsers) setUsers(JSON.parse(savedUsers));
+      const savedCurrentUser = localStorage.getItem('pos_current_user');
+      if (savedCurrentUser) setCurrentUser(JSON.parse(savedCurrentUser));
       const savedProducts = localStorage.getItem('pos_products');
       if (savedProducts) setProductCatalog(JSON.parse(savedProducts));
       const savedOrders = localStorage.getItem('pos_orders');
@@ -151,6 +164,7 @@ export default function App() {
           setExpenses(data.expenses || []);
           setInventoryItems(data.inventoryItems || []);
           setInventoryTransactions(data.inventoryTransactions || []);
+              setUsers(data.users || []);
           setLastSyncedHash(serverHash);
         }
       } catch (err) {
@@ -171,8 +185,14 @@ export default function App() {
     localStorage.setItem('pos_expenses', JSON.stringify(expenses));
     localStorage.setItem('pos_inventory', JSON.stringify(inventoryItems));
     localStorage.setItem('pos_inv_transactions', JSON.stringify(inventoryTransactions));
+    localStorage.setItem('pos_users', JSON.stringify(users));
+    if (currentUser) {
+      localStorage.setItem('pos_current_user', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('pos_current_user');
+    }
 
-    const currentData = { products: productCatalog, orders: orders, restocks: restocks, expenses: expenses, inventoryItems, inventoryTransactions };
+    const currentData = { products: productCatalog, orders: orders, restocks: restocks, expenses: expenses, inventoryItems, inventoryTransactions, users };
     const currentHash = JSON.stringify(currentData);
 
     if (skipNextSyncRef.current) {
@@ -194,7 +214,7 @@ export default function App() {
 
       return () => clearTimeout(syncTimeout);
     }
-  }, [productCatalog, orders, restocks, expenses, inventoryItems, inventoryTransactions, isDataLoaded, lastSyncedHash]);
+  }, [productCatalog, orders, restocks, expenses, inventoryItems, inventoryTransactions, users, isDataLoaded, lastSyncedHash, currentUser]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('ทั้งหมด');
@@ -1770,6 +1790,94 @@ export default function App() {
     );
   };
 
+
+  const handleAuth = () => {
+    if (!authUsername.trim() || !authPin.trim()) {
+      setAuthError('กรุณากรอกชื่อผู้ใช้และ PIN');
+      return;
+    }
+    
+    if (authMode === 'login') {
+      const user = users.find(u => u.username === authUsername && u.pin === authPin);
+      if (user) {
+        setCurrentUser(user);
+        setAuthError('');
+      } else {
+        setAuthError('ชื่อผู้ใช้หรือ PIN ไม่ถูกต้อง');
+      }
+    } else {
+      if (users.find(u => u.username === authUsername)) {
+        setAuthError('ชื่อผู้ใช้นี้มีในระบบแล้ว');
+        return;
+      }
+      const newUser: UserType = {
+        id: 'u_' + Date.now().toString(),
+        username: authUsername,
+        pin: authPin
+      };
+      setUsers([...users, newUser]);
+      setCurrentUser(newUser);
+      setAuthError('');
+    }
+  };
+
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 font-sans text-slate-800">
+        <div className="bg-white p-8 rounded-3xl shadow-lg max-w-md w-full">
+          <div className="flex justify-center mb-6 text-indigo-600">
+            <User size={48} />
+          </div>
+          <h1 className="text-2xl font-bold text-center text-slate-900 mb-8">{authMode === 'login' ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก'}</h1>
+          
+          <div className="space-y-4 mb-6">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">ชื่อผู้ใช้</label>
+              <input 
+                type="text" 
+                value={authUsername}
+                onChange={e => setAuthUsername(e.target.value)}
+                className="w-full border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                placeholder="ชื่อของคุณ"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">PIN (รหัสผ่าน)</label>
+              <input 
+                type="password" 
+                value={authPin}
+                onChange={e => setAuthPin(e.target.value)}
+                className="w-full border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                placeholder="ตัวเลขหรือรหัสผ่าน"
+              />
+            </div>
+            {authError && <p className="text-red-500 text-sm font-semibold text-center">{authError}</p>}
+            
+            <button 
+              onClick={() => { sounds.click(); handleAuth(); }}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-colors"
+            >
+              {authMode === 'login' ? 'เข้าสู่ระบบ' : 'สร้างบัญชี'}
+            </button>
+          </div>
+          
+          <div className="text-center">
+            <button 
+              onClick={() => {
+                sounds.click();
+                setAuthError('');
+                setAuthMode(authMode === 'login' ? 'register' : 'login');
+              }}
+              className="text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
+            >
+              {authMode === 'login' ? 'ยังไม่มีบัญชี? สมัครสมาชิก' : 'มีบัญชีแล้ว? เข้าสู่ระบบ'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 flex font-sans text-slate-800">
       <aside className="w-20 bg-slate-900 hidden md:flex flex-col items-center py-6 gap-8">
@@ -1793,6 +1901,9 @@ export default function App() {
         </button>
         <button onClick={() => { sounds.click(); setActiveView('settings'); }} className={`w-10 h-10 rounded-xl flex items-center justify-center text-white transition-colors mt-auto ${activeView === 'settings' ? 'bg-indigo-600 shadow-sm' : 'bg-slate-800 hover:bg-slate-700'}`}>
           <Settings size={20} />
+        </button>
+        <button onClick={() => { sounds.click(); setCurrentUser(null); }} className="w-10 h-10 rounded-xl flex items-center justify-center text-red-400 hover:text-white hover:bg-red-500 bg-slate-800 transition-colors mt-2" title="ออกจากระบบ">
+          <LogOut size={20} />
         </button>
       </aside>
 
