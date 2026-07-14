@@ -1,3 +1,4 @@
+let audioCtx: AudioContext | null = null;
 let isMuted = false;
 
 export const setMuted = (muted: boolean) => {
@@ -6,50 +7,73 @@ export const setMuted = (muted: boolean) => {
 
 export const getMuted = () => isMuted;
 
-// ดึงเสียงจากแหล่งภายนอก (Google Actions Sound Library)
-const playExternalSound = (url: string, volume = 0.5) => {
+const getCtx = () => {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  return audioCtx;
+};
+
+const playModernTone = (
+  freq: number,
+  type: OscillatorType,
+  duration: number,
+  vol = 0.1,
+  slideFreq?: number,
+  slideDuration?: number
+) => {
   if (isMuted) return;
   try {
-    const audio = new Audio(url);
-    audio.volume = volume;
-    audio.play().catch(e => console.log('Audio play error:', e));
+    const ctx = getCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    if (slideFreq) {
+      osc.frequency.exponentialRampToValueAtTime(slideFreq, ctx.currentTime + (slideDuration || duration));
+    }
+
+    // Quick attack, exponential decay for a snappy modern UI sound
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + duration);
   } catch (e) {
     console.error(e);
   }
 };
 
-// เสียงพูดให้กำลังใจ (Speech Synthesis API)
-const speak = (text: string) => {
-  if (isMuted) return;
-  if ('speechSynthesis' in window) {
-    // ยกเลิกเสียงที่กำลังพูดอยู่ก่อนหน้าเพื่อไม่ให้เสียงซ้อนกัน
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'th-TH';
-    utterance.rate = 1.1;
-    utterance.pitch = 1.2;
-    window.speechSynthesis.speak(utterance);
-  }
-};
-
 export const sounds = {
-  click: () => playExternalSound('https://actions.google.com/sounds/v1/water/water_drop.ogg', 0.3),
-  tap: () => playExternalSound('https://actions.google.com/sounds/v1/ui/button_click.ogg', 0.3),
+  click: () => playModernTone(1400, 'sine', 0.05, 0.05, 1000, 0.05),
+  tap: () => playModernTone(800, 'triangle', 0.05, 0.05, 600, 0.05),
   add: () => {
-    playExternalSound('https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg', 0.4);
+    playModernTone(880, 'sine', 0.1, 0.05, 1200, 0.1);
+    setTimeout(() => playModernTone(1760, 'sine', 0.15, 0.05), 80);
   },
   remove: () => {
-    playExternalSound('https://actions.google.com/sounds/v1/cartoon/slip_slop.ogg', 0.3);
+    playModernTone(600, 'triangle', 0.1, 0.05, 300, 0.1);
   },
   success: () => {
-    playExternalSound('https://actions.google.com/sounds/v1/cartoon/magic_chime.ogg', 0.5);
-    setTimeout(() => speak('เยี่ยมมากค่ะ ทำรายการสำเร็จ'), 500);
+    playModernTone(523.25, 'sine', 0.15, 0.05);
+    setTimeout(() => playModernTone(659.25, 'sine', 0.15, 0.05), 80);
+    setTimeout(() => playModernTone(1046.50, 'sine', 0.3, 0.05), 160);
   },
   error: () => {
-    playExternalSound('https://actions.google.com/sounds/v1/alarms/beep_short.ogg', 0.3);
+    playModernTone(300, 'sawtooth', 0.15, 0.05, 250, 0.15);
+    setTimeout(() => playModernTone(250, 'sawtooth', 0.2, 0.05, 200, 0.2), 120);
   },
   cash: () => {
-    playExternalSound('https://actions.google.com/sounds/v1/cartoon/clown_horn.ogg', 0.3);
-    setTimeout(() => speak('รับยอดเรียบร้อย รวยๆ เฮงๆ นะคะ'), 300);
+    // High-tech success beep like contactless payment
+    playModernTone(1500, 'sine', 0.1, 0.08);
+    setTimeout(() => playModernTone(2000, 'sine', 0.3, 0.1), 100);
   }
 };
