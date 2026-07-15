@@ -22,6 +22,14 @@ export default function App() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
 
+
+  const formatForDatetimeLocal = (isoString?: string) => {
+    if (!isoString) return '';
+    const d = new Date(isoString);
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+  };
+
   const getLocalDatetime = () => {
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -69,6 +77,7 @@ export default function App() {
   const [isInvAdding, setIsInvAdding] = useState(false);
   const [invSearchQuery, setInvSearchQuery] = useState('');
   const [invTab, setInvTab] = useState<'items' | 'history'>('items');
+  const [invDateState, setInvDateState] = useState('');
   
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
@@ -316,7 +325,7 @@ export default function App() {
         subtotal, 
         total, 
         totalCost, 
-        timestamp: checkoutDate ? new Date(checkoutDate).toISOString() : new Date().toISOString(),
+        timestamp: checkoutDate ? new Date(checkoutDate).toISOString() : oldOrder!.timestamp,
         customerName: checkoutCustomerName || oldOrder?.customerName,
         user: currentUser?.username
       };
@@ -354,6 +363,8 @@ export default function App() {
     sounds.click();
     setCart(order.items);
     setEditingOrderId(order.id);
+    setCheckoutCustomerName(order.customerName || '');
+    setCheckoutDate(formatForDatetimeLocal(order.timestamp));
     setActiveView('pos');
   };
 
@@ -734,7 +745,8 @@ export default function App() {
             bulkCost: restockMasterItemId ? 0 : bulkCost,
             paymentMethod: restockPaymentMethod,
             masterItemId: restockMasterItemId || undefined,
-            user: r.user || currentUser?.username
+            user: r.user || currentUser?.username,
+            timestamp: restockDateState ? new Date(restockDateState).toISOString() : r.timestamp
           } : r));
         }
         setEditingRestockId(null);
@@ -798,6 +810,7 @@ export default function App() {
       setUnitCost(r.unitCost);
       setRestockPaymentMethod(r.paymentMethod || 'cash');
       setRestockMasterItemId(r.masterItemId || '');
+      setRestockDateState(formatForDatetimeLocal(r.timestamp));
     };
 
     const handleDelete = (r: RestockRecord) => {
@@ -1181,7 +1194,8 @@ export default function App() {
           note,
           type: expenseType,
           paymentMethod: expensePaymentMethod,
-          user: e.user || currentUser?.username
+          user: e.user || currentUser?.username,
+          timestamp: expenseDateState ? new Date(expenseDateState).toISOString() : e.timestamp
         } : e));
         setEditingExpenseId(null);
       } else {
@@ -1209,6 +1223,7 @@ export default function App() {
       setNote(e.note);
       setExpenseType(e.type || 'expense');
       setExpensePaymentMethod(e.paymentMethod || 'cash');
+      setExpenseDateState(formatForDatetimeLocal(e.timestamp));
     };
 
     const handleDelete = (id: string) => {
@@ -1427,7 +1442,7 @@ export default function App() {
               <Package size={24} className="text-indigo-600" />
               {isInvAdding ? 'เพิ่มรายการคลังหลัก' : 'แก้ไขรายการคลังหลัก'}
             </h2>
-            <button onClick={() => { sounds.click(); setIsInvAdding(false); setEditingInventoryItem(null); setInvForm(null); }} className="text-slate-400 hover:text-slate-600 transition-colors p-1">
+            <button onClick={() => { sounds.click(); setIsInvAdding(false); setEditingInventoryItem(null); setInvForm(null); setInvDateState(''); }} className="text-slate-400 hover:text-slate-600 transition-colors p-1">
               <X size={24} />
             </button>
           </div>
@@ -1491,7 +1506,7 @@ export default function App() {
           </div>
 
           <div className="flex flex-col sm:flex-row justify-end gap-3 mt-8 pt-6 border-t border-slate-100">
-            <button onClick={() => { sounds.click(); setIsInvAdding(false); setEditingInventoryItem(null); setInvForm(null); }} className="px-6 py-3 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">ยกเลิก</button>
+            <button onClick={() => { sounds.click(); setIsInvAdding(false); setEditingInventoryItem(null); setInvForm(null); setInvDateState(''); }} className="px-6 py-3 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">ยกเลิก</button>
             <button onClick={handleSaveInv} disabled={!invForm.name} className="px-8 py-3 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2">
               <Save size={18} /> บันทึกรายการ
             </button>
@@ -2155,14 +2170,12 @@ export default function App() {
           <Settings size={20} />
           <span className="text-[10px] font-bold">ตั้งค่า</span>
         </button>
+        <button onClick={() => { sounds.click(); setCurrentUser(null); }} className="p-2 rounded-xl flex flex-col items-center gap-1 min-w-[4rem] flex-1 text-red-500 hover:bg-red-50 transition-colors">
+          <LogOut size={20} />
+          <span className="text-[10px] font-bold">ออก</span>
+        </button>
       </div>
-      <button
-        onClick={() => { sounds.click(); setCurrentUser(null); }}
-        className="md:hidden fixed bottom-24 left-4 w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center text-red-500 hover:text-red-600 border border-slate-200 z-[60] transition-colors"
-        title="ออกจากระบบ"
-      >
-        <LogOut size={18} />
-      </button>
+
       <button
         onClick={toggleSound}
         className="fixed bottom-24 md:bottom-6 right-6 w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-slate-700 hover:text-indigo-600 border border-slate-200 z-[60] transition-colors"
