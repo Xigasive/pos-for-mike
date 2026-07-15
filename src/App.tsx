@@ -21,6 +21,13 @@ export default function App() {
   const [productCatalog, setProductCatalog] = useState<Product[]>(initialProducts);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
+
+  const getLocalDatetime = () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    return now.toISOString().slice(0, 16);
+  };
+
   const [activeView, setActiveView] = useState<'pos' | 'history' | 'dashboard' | 'settings' | 'restock' | 'expenses' | 'inventory'>('pos');
   const [orders, setOrders] = useState<Order[]>([]);
   const [restocks, setRestocks] = useState<RestockRecord[]>([]);
@@ -66,16 +73,19 @@ export default function App() {
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [checkoutCustomerName, setCheckoutCustomerName] = useState('');
+  const [checkoutDate, setCheckoutDate] = useState('');
 
   // ExpensesView state
   const [amount, setAmount] = useState<number>(0);
   const [note, setNote] = useState('');
   const [expenseType, setExpenseType] = useState<'income' | 'expense'>('expense');
+  const [expenseDateState, setExpenseDateState] = useState('');
   const [expensePaymentMethod, setExpensePaymentMethod] = useState<'cash' | 'transfer'>('cash');
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
 
   // RestockView payment method (restock states are near line 25, let's just add it here for simplicity)
   const [restockPaymentMethod, setRestockPaymentMethod] = useState<'cash' | 'transfer'>('cash');
+  const [restockDateState, setRestockDateState] = useState('');
 
   // Filters state
   const [historyDate, setHistoryDate] = useState<string>('');
@@ -306,7 +316,7 @@ export default function App() {
         subtotal, 
         total, 
         totalCost, 
-        timestamp: new Date().toISOString(),
+        timestamp: checkoutDate ? new Date(checkoutDate).toISOString() : new Date().toISOString(),
         customerName: checkoutCustomerName || oldOrder?.customerName,
         user: currentUser?.username
       };
@@ -324,7 +334,7 @@ export default function App() {
         subtotal,
         total,
         totalCost,
-        timestamp: new Date().toISOString(),
+        timestamp: checkoutDate ? new Date(checkoutDate).toISOString() : new Date().toISOString(),
         customerName: checkoutCustomerName,
         user: currentUser?.username
       };
@@ -333,7 +343,8 @@ export default function App() {
     }
     
     setCheckoutCustomerName('');
-    setIsCheckoutModalOpen(false);
+      setCheckoutDate('');
+      setIsCheckoutModalOpen(false);
     clearCart();
     setIsMobileCartOpen(false);
     setActiveView('history');
@@ -742,7 +753,7 @@ export default function App() {
             quantity: bulkQty,
             unitCost: masterItem.unitCost,
             totalCost: finalTotalCost,
-            timestamp: new Date().toISOString(),
+          timestamp: restockDateState ? new Date(restockDateState).toISOString() : new Date().toISOString(),
             note: `แปลงสต็อกเข้าหน้าร้าน: ${product.name}`,
             user: currentUser?.username
           }]);
@@ -755,7 +766,7 @@ export default function App() {
           quantity: qty,
           unitCost: finalUnitCost,
           totalCost: finalTotalCost,
-          timestamp: new Date().toISOString(),
+          timestamp: restockDateState ? new Date(restockDateState).toISOString() : new Date().toISOString(),
           bulkUnit: restockMasterItemId ? (masterItem?.unit || 'หน่วย') : bulkUnit,
           bulkQty,
           bulkCost: restockMasterItemId ? (masterItem?.unitCost || 0) : bulkCost,
@@ -770,6 +781,7 @@ export default function App() {
       setBulkUnit('แพ็ค');
       setBulkQty(1);
       setBulkCost(0);
+      setRestockDateState('');
       setQty(0);
       setUnitCost(0);
       setRestockMasterItemId('');
@@ -812,8 +824,9 @@ export default function App() {
         setEditingRestockId(null);
         setSelectedProductId('');
         setBulkUnit('แพ็ค');
-        setBulkQty(1);
-        setBulkCost(0);
+      setBulkQty(1);
+      setBulkCost(0);
+      setRestockDateState('');
         setQty(0);
         setUnitCost(0);
         setRestockMasterItemId('');
@@ -959,6 +972,10 @@ export default function App() {
               </label>
             )}
 
+            <label className="flex flex-col text-sm font-semibold text-slate-500">
+              วันที่ (ย้อนหลัง)
+              <input type="datetime-local" className="mt-1 border border-slate-200 rounded-lg p-2 text-sm text-slate-900" value={restockDateState} onChange={e => setRestockDateState(e.target.value)} />
+            </label>
             {!restockMasterItemId && (<label className="flex flex-col text-sm font-semibold text-slate-500">วิธีการชำระเงิน
                 <div className="flex mt-1 bg-slate-100 p-1 rounded-lg">
                   <button onClick={() => { sounds.click(); setRestockPaymentMethod('cash'); }} className={`flex-1 text-xs font-bold py-2 rounded-md transition-all ${restockPaymentMethod === 'cash' ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>เงินสด</button>
@@ -969,7 +986,7 @@ export default function App() {
 
             <div className="flex gap-2 items-end pt-2 lg:pt-0 md:col-span-2 lg:col-span-3 lg:justify-end">
               {editingRestockId && (
-                <button onClick={() => { sounds.click(); setEditingRestockId(null); setSelectedProductId(''); setBulkUnit('แพ็ค'); setBulkQty(1); setBulkCost(0); setQty(0); setUnitCost(0); setRestockPaymentMethod('cash'); setRestockMasterItemId(''); }} className="px-6 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 rounded-lg transition-colors">
+                <button onClick={() => { sounds.click(); setEditingRestockId(null); setSelectedProductId(''); setBulkUnit('แพ็ค'); setBulkQty(1); setBulkCost(0); setQty(0); setUnitCost(0); setRestockPaymentMethod('cash'); setRestockMasterItemId(''); setRestockDateState(''); }} className="px-6 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 rounded-lg transition-colors">
                   ยกเลิก
                 </button>
               )}
@@ -1173,7 +1190,7 @@ export default function App() {
           amount,
           note,
           type: expenseType,
-          timestamp: new Date().toISOString(),
+          timestamp: expenseDateState ? new Date(expenseDateState).toISOString() : new Date().toISOString(),
           paymentMethod: expensePaymentMethod,
           user: currentUser?.username
         };
@@ -1183,6 +1200,7 @@ export default function App() {
       setNote('');
       setExpenseType('expense');
       setExpensePaymentMethod('cash');
+      setExpenseDateState('');
     };
 
     const handleEdit = (e: ExpenseRecord) => {
@@ -1199,8 +1217,9 @@ export default function App() {
         setEditingExpenseId(null);
         setAmount(0);
         setNote('');
-        setExpenseType('expense');
-        setExpensePaymentMethod('cash');
+      setExpenseType('expense');
+      setExpensePaymentMethod('cash');
+      setExpenseDateState('');
       }
     };
 
@@ -1210,7 +1229,7 @@ export default function App() {
         
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm mb-8">
           <h2 className="text-xl font-bold text-slate-900 mb-4">{editingExpenseId ? 'แก้ไขรายการ' : 'เพิ่มรายการใหม่'}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4 items-end">
             <label className="flex flex-col text-sm font-semibold text-slate-500">
               ประเภท
               <select 
@@ -1235,6 +1254,10 @@ export default function App() {
               </div>
             </label>
             <label className="flex flex-col text-sm font-semibold text-slate-500">
+              วันที่ (ย้อนหลัง)
+              <input type="datetime-local" className="mt-1 border border-slate-200 rounded-lg p-2 text-sm text-slate-900" value={expenseDateState} onChange={e => setExpenseDateState(e.target.value)} />
+            </label>
+            <label className="flex flex-col text-sm font-semibold text-slate-500">
               ช่องทาง
               <div className="flex mt-1 bg-slate-100 p-1 rounded-lg">
                 <button onClick={() => { sounds.click(); setExpensePaymentMethod('cash'); }} className={`flex-1 text-xs font-bold py-2 rounded-md transition-all ${expensePaymentMethod === 'cash' ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>เงินสด</button>
@@ -1243,7 +1266,7 @@ export default function App() {
             </label>
             <div className="flex gap-2 lg:col-span-1">
               {editingExpenseId && (
-                <button onClick={() => { sounds.click(); setEditingExpenseId(null); setAmount(0); setNote(''); setExpensePaymentMethod('cash'); }} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 rounded-lg transition-colors">
+                <button onClick={() => { sounds.click(); setEditingExpenseId(null); setAmount(0); setNote(''); setExpensePaymentMethod('cash'); setExpenseDateState(''); }} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 rounded-lg transition-colors">
                   ยกเลิก
                 </button>
               )}
@@ -1353,7 +1376,7 @@ export default function App() {
             quantity: invForm.stock,
             unitCost: invForm.unitCost,
             totalCost: invForm.stock * invForm.unitCost,
-            timestamp: new Date().toISOString(),
+            timestamp: invDateState ? new Date(invDateState).toISOString() : new Date().toISOString(),
             note: 'เพิ่มสินค้าเริ่มต้นในคลังหลัก',
             user: currentUser?.username
           }]);
@@ -1371,7 +1394,7 @@ export default function App() {
             quantity: Math.abs(diff),
             unitCost: invForm.unitCost,
             totalCost: Math.abs(diff) * invForm.unitCost,
-            timestamp: new Date().toISOString(),
+            timestamp: invDateState ? new Date(invDateState).toISOString() : new Date().toISOString(),
             note: 'ปรับปรุง/แก้ไขจำนวนคลังหลัก',
             user: currentUser?.username
           }]);
@@ -1380,6 +1403,7 @@ export default function App() {
       setIsInvAdding(false);
       setEditingInventoryItem(null);
       setInvForm(null);
+      setInvDateState('');
     };
 
     const handleDeleteInv = (id: string) => {
@@ -1458,6 +1482,11 @@ export default function App() {
             <div>
               <label className="text-sm font-semibold text-slate-600 mb-1.5 block">ต้นทุน/หน่วย (฿)</label>
               <input type="number" min="0" step="0.01" placeholder="0.00" className="w-full border border-slate-200 rounded-lg p-3 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-center font-mono text-indigo-700 font-bold" value={invForm.unitCost || ''} onChange={e => setInvForm({...invForm, unitCost: Number(e.target.value)})} />
+            </div>
+            
+            <div className="md:col-span-2">
+              <label className="text-sm font-semibold text-slate-600 mb-1.5 block">วันที่ทำรายการ (ย้อนหลัง)</label>
+              <input type="datetime-local" className="w-full border border-slate-200 rounded-lg p-3 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all" value={invDateState} onChange={e => setInvDateState(e.target.value)} />
             </div>
           </div>
 
@@ -2066,6 +2095,16 @@ export default function App() {
                   autoFocus
                 />
               </label>
+              
+              <label className="flex flex-col text-sm font-semibold text-slate-700 mt-4">
+                วันที่ทำรายการ (กรณีทำย้อนหลัง)
+                <input
+                  type="datetime-local"
+                  className="mt-2 w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-base font-normal"
+                  value={checkoutDate}
+                  onChange={e => setCheckoutDate(e.target.value)}
+                />
+              </label>
             </div>
             
             <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3 justify-end">
@@ -2119,7 +2158,7 @@ export default function App() {
       </div>
       <button
         onClick={() => { sounds.click(); setCurrentUser(null); }}
-        className="md:hidden fixed top-4 right-4 w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center text-red-500 hover:text-red-600 border border-slate-200 z-[60] transition-colors"
+        className="md:hidden fixed bottom-24 left-4 w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center text-red-500 hover:text-red-600 border border-slate-200 z-[60] transition-colors"
         title="ออกจากระบบ"
       >
         <LogOut size={18} />
