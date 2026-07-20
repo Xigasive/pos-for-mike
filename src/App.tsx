@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { products as initialProducts } from './data';
 import { CartItem, Product, Order, RestockRecord, ExpenseRecord, MasterInventoryItem, InventoryTransaction, User as UserType } from './types';
 import { ShoppingCart, Plus, Minus, CheckCircle2, AlertCircle, Trash2, Home, BarChart2, User, Search, Edit, FileText, Settings, PackagePlus, Wallet, TrendingUp, ShoppingBag, Package, ArrowRightLeft, TrendingDown, Database, Clock, History, Filter, X, Save, Gift, Volume2, VolumeX, Landmark, CreditCard, LogOut } from 'lucide-react';
@@ -28,6 +28,14 @@ export default function App() {
     const d = new Date(isoString);
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
     return d.toISOString().slice(0, 16);
+  };
+
+
+  const getLocalDateString = (isoString?: string) => {
+    if (!isoString) return '';
+    const d = new Date(isoString);
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 10);
   };
 
   const getLocalDatetime = () => {
@@ -123,32 +131,6 @@ export default function App() {
 
   useEffect(() => {
     // Initial data load from server
-    const loadInitialData = async () => {
-      try {
-        const res = await fetch('https://xigasive.pythonanywhere.com/sync');
-        const data = await res.json();
-        if (data.products && data.products.length > 0) {
-          skipNextSyncRef.current = true;
-          setProductCatalog(data.products);
-          setOrders(data.orders || []);
-          setRestocks(data.restocks || []);
-          setExpenses(data.expenses || []);
-          setInventoryItems(data.inventoryItems || []);
-          setInventoryTransactions(data.inventoryTransactions || []);
-          setUsers(data.users || []);
-          setLastSyncedHash(JSON.stringify(data));
-        } else {
-          fallbackLocal();
-          setLastSyncedHash(JSON.stringify(data));
-        }
-      } catch (err) {
-        fallbackLocal();
-        setLastSyncedHash('OFFLINE'); 
-      } finally {
-        setIsDataLoaded(true);
-      }
-    };
-
     const fallbackLocal = () => {
       const savedUsers = localStorage.getItem('pos_users');
       if (savedUsers) setUsers(JSON.parse(savedUsers));
@@ -168,6 +150,31 @@ export default function App() {
       if (savedInvTransactions) setInventoryTransactions(JSON.parse(savedInvTransactions));
     };
 
+    const loadInitialData = async () => {
+      fallbackLocal(); // Load from localStorage immediately
+      setIsDataLoaded(true); // Allow UI to render instantly
+      try {
+        const res = await fetch('https://xigasive.pythonanywhere.com/sync');
+        const data = await res.json();
+        if (data.products && data.products.length > 0) {
+          skipNextSyncRef.current = true;
+          setProductCatalog(data.products);
+          setOrders(data.orders || []);
+          setRestocks(data.restocks || []);
+          setExpenses(data.expenses || []);
+          setInventoryItems(data.inventoryItems || []);
+          setInventoryTransactions(data.inventoryTransactions || []);
+          setUsers(data.users || []);
+          setLastSyncedHash(JSON.stringify(data));
+        } else {
+          setLastSyncedHash(JSON.stringify(data));
+        }
+      } catch (err) {
+        setLastSyncedHash('OFFLINE'); 
+      }
+    };
+
+    // Remove the old fallbackLocal definition since we moved it above
     loadInitialData();
 
     // Realtime polling
@@ -515,16 +522,16 @@ export default function App() {
     const transferBalance = totalTransferIncome - totalTransferExpense;
 
     const allDates = new Set([
-      ...orders.map(o => new Date(String(o.timestamp)).toLocaleDateString('en-CA')),
-      ...restocks.map(r => new Date(String(r.timestamp)).toLocaleDateString('en-CA')),
-      ...expenses.map(e => new Date(String(e.timestamp)).toLocaleDateString('en-CA'))
+      ...orders.map(o => getLocalDateString(String(o.timestamp))),
+      ...restocks.map(r => getLocalDateString(String(r.timestamp))),
+      ...expenses.map(e => getLocalDateString(String(e.timestamp)))
     ]);
     const availableDates = Array.from<string>(allDates).sort((a,b) => b.localeCompare(a));
     const defaultDate = dashboardDate || (availableDates.length > 0 ? availableDates[0] : '');
     
-    const dailyOrders = defaultDate ? orders.filter(o => new Date(String(o.timestamp)).toLocaleDateString('en-CA') === defaultDate) : orders;
-    const dailyRestocks = defaultDate ? restocks.filter(r => new Date(String(r.timestamp)).toLocaleDateString('en-CA') === defaultDate) : restocks;
-    const dailyExpensesList = defaultDate ? expenses.filter(e => new Date(String(e.timestamp)).toLocaleDateString('en-CA') === defaultDate) : expenses;
+    const dailyOrders = defaultDate ? orders.filter(o => getLocalDateString(String(o.timestamp)) === defaultDate) : orders;
+    const dailyRestocks = defaultDate ? restocks.filter(r => getLocalDateString(String(r.timestamp)) === defaultDate) : restocks;
+    const dailyExpensesList = defaultDate ? expenses.filter(e => getLocalDateString(String(e.timestamp)) === defaultDate) : expenses;
     
     const dailyRevenue = dailyOrders.reduce((sum, o) => sum + o.subtotal, 0);
     const dailyProfit = dailyRevenue - dailyOrders.reduce((sum, o) => sum + o.totalCost, 0);
@@ -689,6 +696,9 @@ export default function App() {
     );
   };
 
+  const restockDatesList = useMemo(() => Array.from<string>(new Set(restocks.map(r => getLocalDateString(String(r.timestamp))))).sort((a,b) => b.localeCompare(a)), [restocks]);
+  const filteredRestocks = useMemo(() => restockDate ? restocks.filter(r => getLocalDateString(String(r.timestamp)) === restockDate) : restocks, [restocks, restockDate]);
+
   const RestockView = () => {
     const handleSelectProduct = (id: string) => {
       setSelectedProductId(id);
@@ -696,8 +706,7 @@ export default function App() {
       if (product) setUnitCost(product.cost);
     };
 
-    const dates = Array.from<string>(new Set(restocks.map(r => new Date(String(r.timestamp)).toLocaleDateString('en-CA')))).sort((a,b) => b.localeCompare(a));
-    const filteredRestocks = restockDate ? restocks.filter(r => new Date(String(r.timestamp)).toLocaleDateString('en-CA') === restockDate) : restocks;
+    
 
     const handleSaveRestock = () => {
       sounds.success();
@@ -1012,14 +1021,14 @@ export default function App() {
         <div className="space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
             <h2 className="text-xl font-bold text-slate-900">ประวัติการนำเข้า</h2>
-            {dates.length > 0 && (
+            {restockDatesList.length > 0 && (
               <select 
                 value={restockDate} 
                 onChange={e => setRestockDate(e.target.value)}
                 className="border border-slate-200 rounded-xl p-2.5 text-sm text-slate-900 bg-white min-w-[150px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="">เลือกวันที่ (ทั้งหมด)</option>
-                {dates.map(d => (
+                {restockDatesList.map(d => (
                   <option key={d} value={d}>{new Date(d).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}</option>
                 ))}
               </select>
@@ -1068,9 +1077,11 @@ export default function App() {
     );
   };
 
+  const historyDatesList = useMemo(() => Array.from<string>(new Set(orders.map(o => getLocalDateString(String(o.timestamp))))).sort((a,b) => b.localeCompare(a)), [orders]);
+  const filteredOrders = useMemo(() => historyDate ? orders.filter(o => getLocalDateString(String(o.timestamp)) === historyDate) : orders, [orders, historyDate]);
+
   const HistoryView = () => {
-    const dates = Array.from<string>(new Set(orders.map(o => new Date(String(o.timestamp)).toLocaleDateString('en-CA')))).sort((a,b) => b.localeCompare(a));
-    const filteredOrders = historyDate ? orders.filter(o => new Date(String(o.timestamp)).toLocaleDateString('en-CA') === historyDate) : orders;
+    
 
     const handleUpdatePayment = (id: string, method: 'cash' | 'transfer') => {
       setOrders(prev => prev.map(o => o.id === id ? { ...o, paymentMethod: method, user: o.user || currentUser?.username } : o));
@@ -1084,14 +1095,14 @@ export default function App() {
       <div className="flex-1 p-6 md:p-8 overflow-y-auto pb-24 md:pb-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <h1 className="text-3xl font-bold text-slate-900">ประวัติการขาย</h1>
-          {dates.length > 0 && (
+          {historyDatesList.length > 0 && (
             <select 
               value={historyDate} 
               onChange={e => { sounds.click(); setHistoryDate(e.target.value); }}
               className="border border-slate-200 rounded-xl p-2.5 text-sm text-slate-900 bg-white min-w-[150px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="">เลือกวันที่ (ทั้งหมด)</option>
-              {dates.map(d => (
+              {historyDatesList.map(d => (
                 <option key={d} value={d}>{new Date(d).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}</option>
               ))}
             </select>
@@ -1179,9 +1190,11 @@ export default function App() {
     );
   };
 
+  const expenseDatesList = useMemo(() => Array.from<string>(new Set(expenses.map(e => getLocalDateString(String(e.timestamp))))).sort((a,b) => b.localeCompare(a)), [expenses]);
+  const filteredExpenses = useMemo(() => expenseDate ? expenses.filter(e => getLocalDateString(String(e.timestamp)) === expenseDate) : expenses, [expenses, expenseDate]);
+
   const ExpensesView = () => {
-    const dates = Array.from<string>(new Set(expenses.map(e => new Date(String(e.timestamp)).toLocaleDateString('en-CA')))).sort((a,b) => b.localeCompare(a));
-    const filteredExpenses = expenseDate ? expenses.filter(e => new Date(String(e.timestamp)).toLocaleDateString('en-CA') === expenseDate) : expenses;
+    
 
     const handleSaveExpense = () => {
       if (amount <= 0 || !note.trim()) return;
@@ -1295,14 +1308,14 @@ export default function App() {
         <div className="space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
             <h2 className="text-xl font-bold text-slate-900">ประวัติรายการ</h2>
-            {dates.length > 0 && (
+            {expenseDatesList.length > 0 && (
               <select 
                 value={expenseDate} 
                 onChange={e => setExpenseDate(e.target.value)}
                 className="border border-slate-200 rounded-xl p-2.5 text-sm text-slate-900 bg-white min-w-[150px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="">เลือกวันที่ (ทั้งหมด)</option>
-                {dates.map(d => (
+                {expenseDatesList.map(d => (
                   <option key={d} value={d}>{new Date(d).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}</option>
                 ))}
               </select>
@@ -1353,6 +1366,10 @@ export default function App() {
       </div>
     );
   };
+
+  const invDatesList = useMemo(() => Array.from<string>(new Set(inventoryTransactions.map(t => getLocalDateString(t.timestamp)))).sort((a,b) => b.localeCompare(a)), [inventoryTransactions]);
+  const filteredInvTrans = useMemo(() => invTransDate ? inventoryTransactions.filter(t => getLocalDateString(t.timestamp) === invTransDate) : inventoryTransactions, [inventoryTransactions, invTransDate]);
+  const filteredItems = useMemo(() => inventoryItems.filter(i => i.name.toLowerCase().includes(invSearchQuery.toLowerCase()) || i.sku.toLowerCase().includes(invSearchQuery.toLowerCase())), [inventoryItems, invSearchQuery]);
 
   const InventoryView = () => {
     const handleAddInv = () => {
@@ -1428,10 +1445,7 @@ export default function App() {
       }
     };
 
-    const invDates = Array.from<string>(new Set(inventoryTransactions.map(t => new Date(t.timestamp).toLocaleDateString('en-CA')))).sort((a,b) => b.localeCompare(a));
-    const filteredInvTrans = invTransDate ? inventoryTransactions.filter(t => new Date(t.timestamp).toLocaleDateString('en-CA') === invTransDate) : inventoryTransactions;
-
-    const filteredItems = inventoryItems.filter(i => i.name.toLowerCase().includes(invSearchQuery.toLowerCase()) || i.sku.toLowerCase().includes(invSearchQuery.toLowerCase()));
+    
 
     const InvFormRender = () => {
       if (!invForm) return null;
@@ -1636,7 +1650,7 @@ export default function App() {
                     className="w-full sm:w-auto pl-9 pr-8 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none shadow-sm cursor-pointer"
                   >
                     <option value="">ทุกวันที่</option>
-                    {invDates.map(d => (
+                    {invDatesList.map(d => (
                       <option key={d} value={d}>{new Date(d).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}</option>
                     ))}
                   </select>
